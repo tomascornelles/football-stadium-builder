@@ -220,9 +220,24 @@ export function cornerTemplateOf(id: ModuleId, anchors: Anchors): CornerTemplate
   return cornerTemplate(anchors[prev].curved, anchors[next].curved);
 }
 
-/** Curva de una grada concreta. Las esquinas siguen la del módulo. */
+/** Curva desplazada una distancia hacia fuera a lo largo de su normal. */
+function offsetFrame(frame: Frame, off: number): Frame {
+  if (Math.abs(off) < 1e-6) return frame;
+  return {
+    segments: frame.segments,
+    length: frame.length,
+    curved: frame.curved,
+    at: (t) => {
+      const s = frame.at(t);
+      return { p: s.p.clone().addScaledVector(s.n, off), n: s.n };
+    },
+    tan: frame.tan,
+  };
+}
+
+/** Curva de una grada concreta. Las esquinas parten de la del módulo, desplazada. */
 export function standFrame(stand: Stand, anchors: Anchors): Frame {
-  if (isCorner(stand.moduleId)) return moduleFrame(stand.moduleId, anchors);
+  if (isCorner(stand.moduleId)) return offsetFrame(moduleFrame(stand.moduleId, anchors), stand.offset);
   const [a, b] = straightEnds(stand.moduleId, STAND_GAP + stand.offset);
   return buildFrame(a, b, stand.curved ? CURVE_BULGE : 0);
 }
@@ -389,7 +404,7 @@ export function moduleExtent(stands: Stand[], moduleId: ModuleId): ModuleExtent 
   let back = -Infinity;
   let top = 0;
   for (const s of list) {
-    const rel = isCorner(moduleId) ? 0 : STAND_GAP + s.offset - anchors[moduleId].v;
+    const rel = isCorner(moduleId) ? s.offset : STAND_GAP + s.offset - anchors[moduleId].v;
     const run = s.height / Math.tan(THREE.MathUtils.degToRad(s.tilt));
     back = Math.max(back, rel + run);
     top = Math.max(top, (bases.get(s.id) ?? 0) + s.height);

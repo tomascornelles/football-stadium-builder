@@ -27,24 +27,22 @@ export function StandEditor({ stand }: { stand: Stand }) {
         onChange={(v) => actions.updateStand(stand.id, { tilt: v })}
       />
 
+      <Slider
+        label="Desplazamiento" unit="m" hint="(+ fuera / − dentro)" value={stand.offset}
+        min={LIMITS.offset.min} max={LIMITS.offset.max} step={LIMITS.offset.step}
+        onChange={(v) => actions.updateStand(stand.id, { offset: v })}
+      />
       {corner ? (
         <p className="hint-text">
           Esquina con plantilla {CORNER_TEMPLATE_LABEL[cornerTemplateOf(stand.moduleId, computeAnchors(getState().stands))]}:
           se ajusta a las gradas vecinas.
         </p>
       ) : (
-        <>
-          <Slider
-            label="Desplazamiento" unit="m" hint="(+ fuera / − dentro)" value={stand.offset}
-            min={LIMITS.offset.min} max={LIMITS.offset.max} step={LIMITS.offset.step}
-            onChange={(v) => actions.updateStand(stand.id, { offset: v })}
-          />
-          <Toggle
-            label="Grada curva"
-            checked={stand.curved}
-            onChange={(v) => actions.updateStand(stand.id, { curved: v })}
-          />
-        </>
+        <Toggle
+          label="Grada curva"
+          checked={stand.curved}
+          onChange={(v) => actions.updateStand(stand.id, { curved: v })}
+        />
       )}
 
       <label className="field-row inline">
@@ -91,7 +89,7 @@ export function StandEditor({ stand }: { stand: Stand }) {
       </div>
 
       <button className="btn full" onClick={() => actions.copyStandToAll(stand.id)}>
-        Copiar a todos los módulos (reemplaza el mismo nivel)
+        Copiar a todos los módulos
       </button>
     </section>
   );

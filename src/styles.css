@@ -470,3 +470,8 @@ select, .field-row.inline select, .modal input[type="text"] {
 /* v0.15.1: menú flotante sobre toda la interfaz */
 .menu-backdrop { position: fixed; inset: 0; z-index: 999; }
 .menu { position: fixed; z-index: 1000; }
+
+/* v0.15.2: el panel móvil siempre fijo abajo (.glass lo ponía en relativo) */
+@media (max-width: 760px) {
+  .panel { position: fixed !important; }
+}
