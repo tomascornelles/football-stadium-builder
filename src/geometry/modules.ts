@@ -249,6 +249,20 @@ function neighborFrame(id: ModuleId, rank: number, stands: Stand[], anchors: Anc
 }
 
 /**
+ * Desplazamiento propio de una esquina respecto al de sus vecinos del mismo nivel.
+ * Si la esquina tiene el mismo desplazamiento que sus vecinos, no se suma nada.
+ */
+export function cornerExtraOffset(stand: Stand, stands: Stand[]): number {
+  const [prev, next] = neighbors(stand.moduleId);
+  const rank = rankOf(stand, stands);
+  const offAt = (id: ModuleId) => {
+    const list = stands.filter((s) => s.moduleId === id).sort((a, b) => a.order - b.order);
+    return list.length === 0 ? 0 : list[Math.min(rank, list.length - 1)].offset;
+  };
+  return stand.offset - (offAt(prev) + offAt(next)) / 2;
+}
+
+/**
  * Curva de una grada. En las esquinas, cada fila se une a la fila del mismo nivel de los vecinos,
  * así las tribunas superiores también encajan.
  */
@@ -265,7 +279,7 @@ export function standFrame(stand: Stand, anchors: Anchors, stands: Stand[]): Fra
     const k = CORNER_HANDLE[cornerTemplate(pf.curved, nf.curved)] * A.distanceTo(B);
     const P1 = A.clone().addScaledVector(tA, k);
     const P2 = B.clone().addScaledVector(tB, -k);
-    return offsetFrame(bezierFrame(A, P1, P2, B, true), stand.offset);
+    return offsetFrame(bezierFrame(A, P1, P2, B, true), cornerExtraOffset(stand, stands));
   }
   const [a, b] = straightEnds(stand.moduleId, STAND_GAP + stand.offset);
   return buildFrame(a, b, CURVE_BULGE_BY[stand.curve as CurveType]);
@@ -433,7 +447,7 @@ export function moduleExtent(stands: Stand[], moduleId: ModuleId): ModuleExtent 
   let back = -Infinity;
   let top = 0;
   for (const s of list) {
-    const rel = isCorner(moduleId) ? s.offset : STAND_GAP + s.offset - anchors[moduleId].v;
+    const rel = isCorner(moduleId) ? cornerExtraOffset(s, stands) : STAND_GAP + s.offset - anchors[moduleId].v;
     const run = s.height / Math.tan(THREE.MathUtils.degToRad(s.tilt));
     back = Math.max(back, rel + run);
     top = Math.max(top, (bases.get(s.id) ?? 0) + s.height);

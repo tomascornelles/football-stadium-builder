@@ -1,5 +1,5 @@
 /** Versión de la aplicación (SemVer). */
-export const APP_VERSION = '0.20.1';
+export const APP_VERSION = '0.20.2';
 
 /** Dimensiones fijas del campo en metros (1 unidad = 1 m). */
 export const PITCH_LENGTH = 105;
