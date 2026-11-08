@@ -69,6 +69,7 @@ function toStand(raw: any): Stand {
     color: raw.color,
     columns: raw.columns !== false,
     railing: raw.railing === true,
+    curved: raw.curved === true,
   };
 }
 

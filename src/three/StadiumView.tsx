@@ -3,11 +3,12 @@ import * as THREE from 'three';
 import { actions, getState, subscribe } from '../store';
 import { MODULE_IDS, ModuleId } from '../types';
 import {
-  MODULE_FRAMES,
+  Anchors,
   buildJunctions,
   buildModuleStructures,
   buildStandGroup,
-  hitboxFor,
+  computeAnchors,
+  hitboxMesh,
   layoutBaseHeights,
   moduleExtent,
 } from '../geometry/modules';
@@ -16,16 +17,8 @@ import { buildPitch } from './pitch';
 const VIEW_HALF_H = 110;
 const VIEW_HALF_W = 130;
 const ROTATE_SPEED = 0.12;
-
-interface StandEntry {
-  group: THREE.Group;
-  key: string;
-}
-
-interface StructureEntry {
-  group: THREE.Group;
-  key: string;
-}
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3;
 
 function disposeGroup(group: THREE.Object3D) {
   group.traverse((obj) => {
@@ -46,8 +39,6 @@ export function StadiumView() {
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-
-    // Cámara ortográfica con perspectiva isométrica
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1000, 2000);
     camera.position.set(200, 200, 200);
     camera.lookAt(0, 0, 0);
@@ -57,7 +48,6 @@ export function StadiumView() {
     sun.position.set(-80, 160, 60);
     scene.add(sun);
 
-    // Mundo: todo lo que gira con el estadio
     const world = new THREE.Group();
     scene.add(world);
     world.add(buildPitch());
@@ -70,48 +60,52 @@ export function StadiumView() {
     ground.position.y = -0.05;
     world.add(ground);
 
-    // Zonas de selección de módulos (visibles al seleccionar)
     const hitboxes = new Map<ModuleId, THREE.Mesh>();
-    for (const id of MODULE_IDS) {
-      const { geometry, position, rotationY } = hitboxFor(MODULE_FRAMES[id]);
-      const mesh = new THREE.Mesh(
-        geometry,
-        new THREE.MeshBasicMaterial({
-          color: 0x7dd3fc,
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-        }),
-      );
-      mesh.position.copy(position);
-      mesh.rotation.y = rotationY;
-      mesh.userData.moduleId = id;
-      world.add(mesh);
-      hitboxes.set(id, mesh);
-    }
+    let hitboxKey = '';
 
     const standGroup = new THREE.Group();
     const structureGroup = new THREE.Group();
     const junctionGroup = new THREE.Group();
-    let junctionKey = '';
     world.add(structureGroup, standGroup, junctionGroup);
+
+    interface StandEntry { group: THREE.Group; key: string }
+    interface StructureEntry { group: THREE.Group; key: string }
     const entries = new Map<string, StandEntry>();
     const structures = new Map<ModuleId, StructureEntry>();
+    let junctionKey = '';
 
     let targetAngle = 0;
     let frameId = 0;
+    let zoom = 1;
 
     /** Sincroniza la escena con el estado. Solo reconstruye lo que cambia. */
     function sync() {
       const st = getState();
       const bases = layoutBaseHeights(st.stands);
+      const anchors: Anchors = computeAnchors(st.stands);
+      const anchorKey = JSON.stringify(anchors);
       const alive = new Set<string>();
 
+      // Módulos de selección: siguen la curva de cada módulo
+      if (anchorKey !== hitboxKey) {
+        hitboxKey = anchorKey;
+        hitboxes.forEach((m) => {
+          world.remove(m);
+          disposeGroup(m);
+        });
+        hitboxes.clear();
+        for (const id of MODULE_IDS) {
+          const m = hitboxMesh(id, anchors);
+          world.add(m);
+          hitboxes.set(id, m);
+        }
+      }
+
+      // Gradas
       for (const s of st.stands) {
         alive.add(s.id);
         const base = bases.get(s.id) ?? 0;
-        const key = `${s.moduleId}|${s.height}|${s.tilt}|${s.offset}|${base}|${s.columns}|${s.railing}`;
+        const key = `${s.moduleId}|${s.height}|${s.tilt}|${s.offset}|${base}|${s.columns}|${s.railing}|${s.curved}|${anchorKey}`;
         let entry = entries.get(s.id);
 
         if (!entry || entry.key !== key) {
@@ -119,7 +113,7 @@ export function StadiumView() {
             standGroup.remove(entry.group);
             disposeGroup(entry.group);
           }
-          const group = buildStandGroup(s, base);
+          const group = buildStandGroup(s, base, anchors);
           standGroup.add(group);
           entry = { group, key };
           entries.set(s.id, entry);
@@ -142,31 +136,32 @@ export function StadiumView() {
         }
       }
 
-      // Exteriores: se reconstruyen solo si cambian sus datos o las gradas del módulo
+      // Exteriores por módulo
       for (const id of MODULE_IDS) {
         const ext = st.exteriors[id];
         const extent = moduleExtent(st.stands, id);
-        const key = JSON.stringify([ext, extent]);
+        const key = JSON.stringify([ext, extent, anchorKey]);
         const current = structures.get(id);
         if (!current || current.key !== key) {
           if (current) {
             structureGroup.remove(current.group);
             disposeGroup(current.group);
           }
-          const group = buildModuleStructures(id, ext, extent);
+          const group = buildModuleStructures(id, ext, extent, anchors);
           structureGroup.add(group);
           structures.set(id, { group, key });
         }
       }
 
+      // Muros de unión
       const extents = {} as Record<ModuleId, ReturnType<typeof moduleExtent>>;
       for (const id of MODULE_IDS) extents[id] = moduleExtent(st.stands, id);
-      const jKey = JSON.stringify([st.exteriors, extents]);
+      const jKey = JSON.stringify([st.exteriors, extents, anchorKey]);
       if (jKey !== junctionKey) {
         junctionKey = jKey;
         disposeGroup(junctionGroup);
         junctionGroup.clear();
-        junctionGroup.add(buildJunctions(st.exteriors, extents));
+        junctionGroup.add(buildJunctions(st.exteriors, extents, anchors));
       }
 
       hitboxes.forEach((mesh, id) => {
@@ -200,10 +195,6 @@ export function StadiumView() {
     observer.observe(container);
     resize();
 
-    // Zoom: rueda del ratón y pellizco con dos dedos
-    const MIN_ZOOM = 0.5;
-    const MAX_ZOOM = 3;
-    let zoom = 1;
     const applyZoom = (z: number) => {
       zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
       camera.zoom = zoom;

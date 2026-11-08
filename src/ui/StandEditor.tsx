@@ -5,8 +5,11 @@ import { MODULE_IDS, MODULE_NAMES, ModuleId, Stand } from '../types';
 import { Slider } from './Slider';
 import { Toggle } from './Toggle';
 
+const CORNER_IDS: ModuleId[] = ['nw', 'ne', 'sw', 'se'];
+
 export function StandEditor({ stand }: { stand: Stand }) {
   const [target, setTarget] = useState<ModuleId | ''>('');
+  const corner = CORNER_IDS.includes(stand.moduleId);
 
   return (
     <section className="editor">
@@ -22,11 +25,23 @@ export function StandEditor({ stand }: { stand: Stand }) {
         min={LIMITS.tilt.min} max={LIMITS.tilt.max} step={LIMITS.tilt.step}
         onChange={(v) => actions.updateStand(stand.id, { tilt: v })}
       />
-      <Slider
-        label="Desplazamiento" unit="m" hint="(+ fuera / − dentro)" value={stand.offset}
-        min={LIMITS.offset.min} max={LIMITS.offset.max} step={LIMITS.offset.step}
-        onChange={(v) => actions.updateStand(stand.id, { offset: v })}
-      />
+
+      {corner ? (
+        <p className="hint-text">Las esquinas se ajustan a los extremos de las gradas vecinas.</p>
+      ) : (
+        <>
+          <Slider
+            label="Desplazamiento" unit="m" hint="(+ fuera / − dentro)" value={stand.offset}
+            min={LIMITS.offset.min} max={LIMITS.offset.max} step={LIMITS.offset.step}
+            onChange={(v) => actions.updateStand(stand.id, { offset: v })}
+          />
+          <Toggle
+            label="Grada curva"
+            checked={stand.curved}
+            onChange={(v) => actions.updateStand(stand.id, { curved: v })}
+          />
+        </>
+      )}
 
       <label className="field-row inline">
         <span>Color</span>

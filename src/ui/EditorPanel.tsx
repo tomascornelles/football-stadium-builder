@@ -5,9 +5,9 @@ import { StandEditor } from './StandEditor';
 import { ExteriorEditor } from './ExteriorEditor';
 
 const SHORT_NAMES: Record<ModuleId, string> = {
-  nw: 'Esq. NO', north: 'Fondo N', ne: 'Esq. NE',
-  west: 'Lat. izq.', east: 'Lat. der.',
-  sw: 'Esq. SO', south: 'Fondo S', se: 'Esq. SE',
+  nw: 'Esq. NO', north: 'Lat. N', ne: 'Esq. NE',
+  west: 'Fondo O', east: 'Fondo E',
+  sw: 'Esq. SO', south: 'Lat. S', se: 'Esq. SE',
 };
 
 const GRID: (ModuleId | 'field')[][] = [

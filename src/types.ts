@@ -3,10 +3,10 @@ export type ModuleId = 'west' | 'east' | 'north' | 'south' | 'nw' | 'ne' | 'sw' 
 export const MODULE_IDS: ModuleId[] = ['west', 'east', 'north', 'south', 'nw', 'ne', 'sw', 'se'];
 
 export const MODULE_NAMES: Record<ModuleId, string> = {
-  west: 'Lateral izquierdo',
-  east: 'Lateral derecho',
-  north: 'Fondo norte',
-  south: 'Fondo sur',
+  west: 'Fondo oeste',
+  east: 'Fondo este',
+  north: 'Lateral norte',
+  south: 'Lateral sur',
   nw: 'Esquina noroeste',
   ne: 'Esquina noreste',
   sw: 'Esquina suroeste',
@@ -30,6 +30,8 @@ export interface Stand {
   columns: boolean;
   /** Barandilla en el frente de la grada. */
   railing: boolean;
+  /** Grada curva (solo en módulos rectos). */
+  curved: boolean;
 }
 
 export type WallType = 'none' | 'concrete' | 'glass' | 'brick' | 'windows' | 'panels';
@@ -148,4 +150,4 @@ export interface AppState {
   rotationSteps: number;
 }
 
-export type StandPatch = Partial<Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing'>>;
+export type StandPatch = Partial<Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing' | 'curved'>>;
