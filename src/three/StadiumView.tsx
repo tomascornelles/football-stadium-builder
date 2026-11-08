@@ -179,7 +179,7 @@ export function StadiumView() {
       for (const s of st.stands) {
         alive.add(s.id);
         const base = bases.get(s.id) ?? 0;
-        const key = `${s.moduleId}|${s.height}|${s.tilt}|${s.offset}|${base}|${s.columns}|${s.railing}|${s.curved}|${anchorKey}`;
+        const key = `${s.moduleId}|${s.height}|${s.tilt}|${s.offset}|${base}|${s.columns}|${s.railing}|${s.curve}|${anchorKey}`;
         let entry = entries.get(s.id);
 
         if (!entry || entry.key !== key) {

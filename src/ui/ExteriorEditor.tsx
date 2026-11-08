@@ -82,6 +82,10 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
           <>
             <Slider label="Altura sobre gradas" unit="m" value={ext.roofHeight} min={1} max={20} step={0.5}
               onChange={(v) => set({ roofHeight: v })} />
+            <Slider label="Ancho (0 = automático)" unit="m" value={ext.roofWidth} min={0} max={80} step={1}
+              onChange={(v) => set({ roofWidth: v })} />
+            <Slider label="Extensión interior" unit="m" value={ext.roofInset} min={0} max={40} step={1}
+              onChange={(v) => set({ roofInset: v })} />
             <Slider label="Vuelo" unit="m" value={ext.roofOverhang} min={0} max={12} step={1}
               onChange={(v) => set({ roofOverhang: v })} />
             <Slider label="Grosor" unit="m" value={ext.roofThickness} min={0.5} max={3} step={0.5}

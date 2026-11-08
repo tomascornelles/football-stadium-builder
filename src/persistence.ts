@@ -5,6 +5,7 @@ import {
   DEFAULT_EXTERIOR,
   EXTERIOR_RANGES,
   EnvCell,
+  migrateCurve,
   FLOOD_OPTIONS,
   MODULE_IDS,
   ModuleExterior,
@@ -77,7 +78,7 @@ function toStand(raw: any): Stand {
     color: raw.color,
     columns: raw.columns !== false,
     railing: raw.railing === true,
-    curved: raw.curved === true,
+    curve: migrateCurve(raw),
   };
 }
 

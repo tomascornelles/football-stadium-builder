@@ -1,12 +1,11 @@
 import * as THREE from 'three';
-import { MODULE_IDS, ModuleExterior, ModuleId, Stand } from '../types';
+import { CURVE_BULGE_BY, CurveType, MODULE_IDS, ModuleExterior, ModuleId, Stand } from '../types';
 import { PITCH_LENGTH, PITCH_WIDTH, ROW_RISE, STAND_GAP } from '../config';
 
 const HALF_L = PITCH_LENGTH / 2; // 52.5 m
 const HALF_W = PITCH_WIDTH / 2; // 34 m
 const ARC_SEGMENTS = 32;
 /** Flecha de una grada curva (m, hacia fuera). */
-const CURVE_BULGE = 14;
 /** Grada elevada. */
 const SLAB = 1.0;
 const COLUMN = 0.9;
@@ -165,7 +164,8 @@ export function cornerTemplate(prevCurved: boolean, nextCurved: boolean): Corner
 export interface Anchor {
   /** Distancia de la línea de banda o de fondo a la primera fila. */
   v: number;
-  curved: boolean;
+  /** Flecha de la curva de la primera fila (m). 0 = recta. */
+  bulge: number;
 }
 export type Anchors = Record<ModuleId, Anchor>;
 
@@ -175,13 +175,13 @@ export type Anchors = Record<ModuleId, Anchor>;
  */
 export function computeAnchors(stands: Stand[]): Anchors {
   const out = {} as Anchors;
-  for (const id of MODULE_IDS) out[id] = { v: STAND_GAP, curved: false };
+  for (const id of MODULE_IDS) out[id] = { v: STAND_GAP, bulge: 0 };
   for (const id of RING) {
     if (isCorner(id)) continue;
     const first = stands
       .filter((s) => s.moduleId === id)
       .sort((a, b) => a.order - b.order)[0];
-    if (first) out[id] = { v: STAND_GAP + first.offset, curved: first.curved };
+    if (first) out[id] = { v: STAND_GAP + first.offset, bulge: CURVE_BULGE_BY[first.curve] };
   }
   return out;
 }
@@ -211,13 +211,13 @@ function cornerFrame(id: ModuleId, anchors: Anchors): Frame {
 export function moduleFrame(id: ModuleId, anchors: Anchors): Frame {
   if (isCorner(id)) return cornerFrame(id, anchors);
   const [a, b] = straightEnds(id, anchors[id].v);
-  return buildFrame(a, b, anchors[id].curved ? CURVE_BULGE : 0);
+  return buildFrame(a, b, anchors[id].bulge);
 }
 
 /** Plantilla que usa una esquina según sus vecinos. */
 export function cornerTemplateOf(id: ModuleId, anchors: Anchors): CornerTemplate {
   const [prev, next] = neighbors(id);
-  return cornerTemplate(anchors[prev].curved, anchors[next].curved);
+  return cornerTemplate(anchors[prev].bulge > 0, anchors[next].bulge > 0);
 }
 
 /** Curva desplazada una distancia hacia fuera a lo largo de su normal. */
@@ -239,7 +239,7 @@ function offsetFrame(frame: Frame, off: number): Frame {
 export function standFrame(stand: Stand, anchors: Anchors): Frame {
   if (isCorner(stand.moduleId)) return offsetFrame(moduleFrame(stand.moduleId, anchors), stand.offset);
   const [a, b] = straightEnds(stand.moduleId, STAND_GAP + stand.offset);
-  return buildFrame(a, b, stand.curved ? CURVE_BULGE : 0);
+  return buildFrame(a, b, CURVE_BULGE_BY[stand.curve as CurveType]);
 }
 
 /* ---------- Barrido de perfiles ---------- */
@@ -494,16 +494,19 @@ export function buildModuleStructures(
     // va a la altura de su borde superior más la holgura elegida
     const tFrame = standFrame(tallest.stand, anchors);
     const { run } = profileUY(tallest.stand, tallest.base);
-    const L = run + ext.roofOverhang;
+    // Va desde el interior (u negativo, sobre el campo) hasta el borde trasero
+    const L = ext.roofWidth > 0 ? ext.roofWidth : run + ext.roofOverhang;
+    const u0 = -ext.roofInset;
+    const span = L - u0;
     const T = ext.roofThickness;
     const yb = (_u: number) => tallest.base + tallest.stand.height + ext.roofHeight;
     // La cubierta curva se abomba en el centro, según su parámetro de flecha
-    const bump = (u: number) => (ext.roof === 'arch' ? ext.roofSlope * 0.3 * Math.sin((Math.PI * u) / L) : 0);
+    const bump = (u: number) => (ext.roof === 'arch' ? ext.roofSlope * 0.3 * Math.sin((Math.PI * (u - u0)) / span) : 0);
     const steps = ext.roof === 'arch' ? 12 : 1;
     const bottom: THREE.Vector2[] = [];
     const top: THREE.Vector2[] = [];
     for (let i = 0; i <= steps; i++) {
-      const u = (L * i) / steps;
+      const u = u0 + (span * i) / steps;
       const y = yb(u) + bump(u);
       bottom.push(v2(u, y));
       top.push(v2(u, y + T));
@@ -512,11 +515,11 @@ export function buildModuleStructures(
     group.add(sweepMesh(tFrame, [...bottom, ...top.reverse()], roofMat));
     if (ext.roofColumns) {
       addColumnsAlong(group, tFrame, [L - 0.8], yb(L - 0.8), concreteMaterial());
-      if (ext.roof !== 'canopy') addColumnsAlong(group, tFrame, [0.8], yb(0.8), concreteMaterial());
+      if (ext.roof !== 'canopy') addColumnsAlong(group, tFrame, [u0 + 0.8], yb(u0 + 0.8), concreteMaterial());
     }
     if (ext.roofDeco !== 'none') {
       const decoMat = new THREE.MeshLambertMaterial({ color: ext.roofDecoColor, flatShading: true });
-      addRoofDecoration(group, tFrame, L, yb(0), T, ext, decoMat);
+      addRoofDecoration(group, tFrame, u0, L, yb(0), T, ext, decoMat);
     }
   }
 
@@ -673,6 +676,7 @@ function addDecoration(
 function addRoofDecoration(
   group: THREE.Group,
   frame: Frame,
+  u0: number,
   L: number,
   roofY: number,
   T: number,
@@ -686,22 +690,24 @@ function addRoofDecoration(
 
   switch (ext.roofDeco) {
     case 'ridge': {
-      group.add(sweepMesh(frame, rectPoints(0, top, L, top + 1.2), mat));
+      group.add(sweepMesh(frame, rectPoints(u0, top, L, top + 1.2), mat));
       break;
     }
     case 'trusses': {
       // Arco de acero en el plano transversal, con cuerda inferior y montantes
       const steps = 10;
+      const c = (u0 + L) / 2;
+      const r = (L - u0) / 2;
       for (const t of ts) {
-        addSegment(group, pointAt(frame, t, 0, top), pointAt(frame, t, L, top), 0.8, mat);
+        addSegment(group, pointAt(frame, t, u0, top), pointAt(frame, t, L, top), 0.8, mat);
         const arc: THREE.Vector3[] = [];
         for (let i = 0; i <= steps; i++) {
           const th = (Math.PI * i) / steps;
-          arc.push(pointAt(frame, t, L / 2 - (L / 2) * Math.cos(th), top + H * Math.sin(th)));
+          arc.push(pointAt(frame, t, c - r * Math.cos(th), top + H * Math.sin(th)));
         }
         for (let i = 0; i < steps; i++) addSegment(group, arc[i], arc[i + 1], 0.8, mat);
         for (let i = 2; i < steps - 1; i += 2) {
-          const foot = pointAt(frame, t, L / 2 - (L / 2) * Math.cos((Math.PI * i) / steps), top);
+          const foot = pointAt(frame, t, c - r * Math.cos((Math.PI * i) / steps), top);
           addSegment(group, arc[i], foot, 0.5, mat);
         }
       }
@@ -713,7 +719,7 @@ function addRoofDecoration(
         const base = pointAt(frame, t, L - 1, top);
         const tip = pointAt(frame, t, L - 1, top + H);
         addSegment(group, base, tip, 0.7, mat);
-        addSegment(group, tip, pointAt(frame, t, 0, top), 0.2, mat);
+        addSegment(group, tip, pointAt(frame, t, u0, top), 0.2, mat);
         addSegment(group, tip, pointAt(frame, t, L, top), 0.2, mat);
       }
       break;

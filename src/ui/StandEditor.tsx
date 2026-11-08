@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { actions, getState } from '../store';
 import { CORNER_TEMPLATE_LABEL, computeAnchors, cornerTemplateOf } from '../geometry/modules';
 import { LIMITS } from '../config';
-import { MODULE_IDS, MODULE_NAMES, ModuleId, Stand } from '../types';
+import { CURVE_OPTIONS, CurveType, MODULE_IDS, MODULE_NAMES, ModuleId, Stand } from '../types';
 import { Slider } from './Slider';
 import { Toggle } from './Toggle';
 
@@ -38,11 +38,17 @@ export function StandEditor({ stand }: { stand: Stand }) {
           se ajusta a las gradas vecinas.
         </p>
       ) : (
-        <Toggle
-          label="Grada curva"
-          checked={stand.curved}
-          onChange={(v) => actions.updateStand(stand.id, { curved: v })}
-        />
+        <label className="field-row inline">
+          <span>Curvatura</span>
+          <select
+            value={stand.curve}
+            onChange={(e) => actions.updateStand(stand.id, { curve: e.target.value as CurveType })}
+          >
+            {CURVE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </label>
       )}
 
       <label className="field-row inline">

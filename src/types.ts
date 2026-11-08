@@ -30,8 +30,25 @@ export interface Stand {
   columns: boolean;
   /** Barandilla en el frente de la grada. */
   railing: boolean;
-  /** Grada curva (solo en módulos rectos). */
-  curved: boolean;
+  /** Curvatura de la grada (solo en módulos rectos). */
+  curve: CurveType;
+}
+
+export type CurveType = 'straight' | 'mid' | 'full';
+
+export const CURVE_OPTIONS: Option<CurveType>[] = [
+  { value: 'straight', label: 'Recta' },
+  { value: 'mid', label: 'Curva intermedia' },
+  { value: 'full', label: 'Curva' },
+];
+
+/** Flecha de la curva según su tipo (m, hacia fuera del campo). */
+export const CURVE_BULGE_BY: Record<CurveType, number> = { straight: 0, mid: 6, full: 14 };
+
+/** Convierte el campo antiguo «curved» (booleano) en el nuevo tipo de curvatura. */
+export function migrateCurve(raw: { curve?: unknown; curved?: unknown }): CurveType {
+  if (raw.curve === 'straight' || raw.curve === 'mid' || raw.curve === 'full') return raw.curve;
+  return raw.curved === true ? 'full' : 'straight';
 }
 
 export type WallType = 'none' | 'concrete' | 'glass' | 'brick' | 'windows' | 'panels';
@@ -102,6 +119,10 @@ export interface ModuleExterior {
   /** Altura de la cubierta sobre la grada más alta (m). */
   roofHeight: number;
   roofOverhang: number;
+  /** Ancho de la cubierta en planta (m). 0 = automático, según las gradas. */
+  roofWidth: number;
+  /** Extensión de la cubierta hacia el interior, sobre el campo (m). */
+  roofInset: number;
   roofThickness: number;
   /** Inclinación (voladizo) o flecha (cubierta curva), en grados. */
   roofSlope: number;
@@ -139,6 +160,8 @@ export const DEFAULT_EXTERIOR: ModuleExterior = {
   roof: 'none',
   roofHeight: 4,
   roofOverhang: 4,
+  roofWidth: 0,
+  roofInset: 0,
   roofThickness: 1,
   roofSlope: 12,
   roofColumns: true,
@@ -171,6 +194,8 @@ export const EXTERIOR_RANGES: Partial<Record<keyof ModuleExterior, [number, numb
   wallThickness: [0.5, 4],
   roofHeight: [1, 20],
   roofOverhang: [0, 12],
+  roofWidth: [0, 80],
+  roofInset: [0, 40],
   roofThickness: [0.5, 3],
   roofSlope: [0, 25],
   floodCount: [1, 4],
@@ -235,4 +260,4 @@ export interface AppState {
   lighting: Lighting;
 }
 
-export type StandPatch = Partial<Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing' | 'curved'>>;
+export type StandPatch = Partial<Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing' | 'curve'>>;

@@ -1,6 +1,7 @@
 import {
   AppMode,
   AppState,
+  migrateCurve,
   BUILDING_HEIGHT,
   Lighting,
   BuildingKind,
@@ -69,7 +70,7 @@ function load(): AppState {
     for (const id of MODULE_IDS) exteriors[id] = { ...DEFAULT_EXTERIOR, ...(saved[id] ?? {}) };
     const stands = (parsed.stands ?? [])
       .filter(isValidStand)
-      .map((s) => ({ ...s, columns: s.columns !== false, railing: s.railing === true, curved: s.curved === true }));
+      .map((s) => ({ ...s, columns: s.columns !== false, railing: s.railing === true, curve: migrateCurve(s) }));
     return {
       stands,
       exteriors,
@@ -154,7 +155,7 @@ export const actions = {
         color: PALETTE[s.stands.length % PALETTE.length],
         columns: true,
         railing: false,
-        curved: false,
+        curve: 'straight',
       };
       return { stands: [...s.stands, stand], selectedModule: m, selectedStandId: stand.id };
     });
@@ -171,7 +172,7 @@ export const actions = {
         if (patch.color !== undefined) n.color = patch.color;
         if (patch.columns !== undefined) n.columns = patch.columns;
         if (patch.railing !== undefined) n.railing = patch.railing;
-        if (patch.curved !== undefined) n.curved = patch.curved;
+        if (patch.curve !== undefined) n.curve = patch.curve;
         return n;
       }),
     }));
