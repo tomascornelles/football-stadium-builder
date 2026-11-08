@@ -1,14 +1,18 @@
 import {
+  AppMode,
   AppState,
   DEFAULT_EXTERIOR,
   EXTERIOR_RANGES,
   MODULE_IDS,
   ModuleExterior,
   ModuleId,
+  EnvCell,
+  EnvTool,
   Stand,
   StandPatch,
 } from './types';
 import { LIMITS, PALETTE, STORAGE_KEY } from './config';
+import { cellKey, sanitizeEnvironment } from './environment';
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
@@ -25,6 +29,11 @@ function defaultState(): AppState {
     selectedModule: 'west',
     selectedStandId: null,
     rotationSteps: 0,
+    environment: {},
+    mode: 'stadium',
+    tool: 'road',
+    buildingHeight: 12,
+    buildingColor: '#d6d3cd',
   };
 }
 
@@ -60,6 +69,11 @@ function load(): AppState {
     return {
       stands,
       exteriors,
+      environment: sanitizeEnvironment(parsed.environment),
+      mode: 'stadium',
+      tool: 'road',
+      buildingHeight: 12,
+      buildingColor: '#d6d3cd',
       selectedModule: MODULE_IDS.includes(parsed.selectedModule as ModuleId)
         ? (parsed.selectedModule as ModuleId) : 'west',
       selectedStandId: null,
@@ -89,6 +103,7 @@ function commit(patch: Partial<AppState> | ((s: AppState) => Partial<AppState>))
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       stands: state.stands,
       exteriors: state.exteriors,
+      environment: state.environment,
       selectedModule: state.selectedModule,
       rotationSteps: state.rotationSteps,
     }));
@@ -226,10 +241,12 @@ export const actions = {
   },
 
   /** Sustituye el estadio actual por uno cargado (biblioteca o archivo). */
-  loadProject(project: { stands: Stand[]; exteriors: Record<ModuleId, ModuleExterior> }) {
+  /** Sustituye el estadio y su entorno por uno cargado (biblioteca o archivo). */
+  loadProject(project: { stands: Stand[]; exteriors: Record<ModuleId, ModuleExterior>; environment?: Record<string, EnvCell> }) {
     commit({
       stands: project.stands,
       exteriors: project.exteriors,
+      environment: project.environment ?? {},
       selectedStandId: null,
       selectedModule: 'west',
     });
@@ -243,6 +260,52 @@ export const actions = {
       for (const id of MODULE_IDS) all[id] = { ...clean };
       return { exteriors: all };
     });
+  },
+
+  setMode(mode: AppMode) {
+    commit({ mode });
+  },
+
+  setTool(tool: EnvTool) {
+    commit({ tool });
+  },
+
+  setBuildingHeight(height: number) {
+    commit({ buildingHeight: clamp(height, 3, 60) });
+  },
+
+  setBuildingColor(color: string) {
+    commit({ buildingColor: color });
+  },
+
+  /** Pinta la celda (i, j) con la herramienta activa. */
+  paintCell(i: number, j: number) {
+    commit((s) => {
+      const key = cellKey(i, j);
+      const cur = s.environment[key];
+      const env = { ...s.environment };
+      switch (s.tool) {
+        case 'erase':
+          delete env[key];
+          break;
+        case 'road':
+        case 'path':
+        case 'park':
+          env[key] = { type: s.tool };
+          break;
+        case 'tree':
+          if (cur?.type === 'park') env[key] = { ...cur, tree: true };
+          break;
+        case 'building':
+          env[key] = { type: 'building', height: s.buildingHeight, color: s.buildingColor };
+          break;
+      }
+      return { environment: env };
+    });
+  },
+
+  clearEnvironment() {
+    commit({ environment: {} });
   },
 
   rotate(delta: number = 1) {

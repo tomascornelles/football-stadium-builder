@@ -214,6 +214,32 @@ export const STYLE_PRESETS: StylePreset[] = [
   },
 ];
 
+/* ---------- Entorno ---------- */
+
+export type CellType = 'road' | 'path' | 'park' | 'building';
+export type EnvTool = 'road' | 'path' | 'park' | 'tree' | 'building' | 'erase';
+export type AppMode = 'stadium' | 'environment';
+
+/** Celda ocupada de la cuadrícula. Las celdas vacías no aparecen en el mapa. */
+export interface EnvCell {
+  type: CellType;
+  /** Solo edificios: altura en metros. */
+  height?: number;
+  /** Solo edificios: color de fachada. */
+  color?: string;
+  /** Solo parques: hay árboles en la celda. */
+  tree?: boolean;
+}
+
+export const ENV_TOOLS: { value: EnvTool; label: string; color: string }[] = [
+  { value: 'road', label: 'Carretera', color: '#4b5563' },
+  { value: 'path', label: 'Camino', color: '#d6c7a1' },
+  { value: 'park', label: 'Parque', color: '#4f9d4f' },
+  { value: 'tree', label: 'Árboles', color: '#2f855a' },
+  { value: 'building', label: 'Edificio', color: '#d6d3cd' },
+  { value: 'erase', label: 'Borrar', color: '#1f2937' },
+];
+
 export interface AppState {
   stands: Stand[];
   exteriors: Record<ModuleId, ModuleExterior>;
@@ -221,6 +247,11 @@ export interface AppState {
   selectedStandId: string | null;
   /** Número de giros de 90° acumulados (la vista se calcula con módulo 4). */
   rotationSteps: number;
+  environment: Record<string, EnvCell>;
+  mode: AppMode;
+  tool: EnvTool;
+  buildingHeight: number;
+  buildingColor: string;
 }
 
 export type StandPatch = Partial<Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing' | 'curved'>>;

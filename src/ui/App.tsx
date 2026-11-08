@@ -3,6 +3,7 @@ import { StadiumView } from '../three/StadiumView';
 import { actions, getState, subscribe } from '../store';
 import { APP_VERSION } from '../config';
 import { EditorPanel } from './EditorPanel';
+import { EnvironmentPanel } from './EnvironmentPanel';
 import { DialogHost } from './DialogHost';
 import { exportFlow, importFlow, libraryFlow, resetFlow, saveFlow } from './flows';
 
@@ -26,6 +27,7 @@ export function App() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const inEnv = state.mode === 'environment';
 
   // Al seleccionar una grada se abre el editor
   useEffect(() => {
@@ -35,6 +37,11 @@ export function App() {
   const fromMenu = (fn: () => void) => () => {
     setMenuOpen(false);
     fn();
+  };
+
+  const toggleMode = () => {
+    actions.setMode(inEnv ? 'stadium' : 'environment');
+    setPanelOpen(true);
   };
 
   return (
@@ -48,6 +55,9 @@ export function App() {
           </div>
         </div>
         <div className="tools">
+          <button className="btn" onClick={toggleMode} title="Cambiar entre estadio y entorno">
+            {inEnv ? 'Estadio' : 'Entorno'}
+          </button>
           <button className="btn ghost" onClick={() => resetFlow()}>Reiniciar</button>
           <div className="menu-wrap">
             <button
@@ -86,7 +96,9 @@ export function App() {
 
       <main className="stage glass">
         <StadiumView />
-        <p className="stage-hint">Toca un módulo o una grada para seleccionarlo</p>
+        <p className="stage-hint">
+          {inEnv ? 'Pinta sobre la cuadrícula. Arrastra para dibujar.' : 'Toca un módulo o una grada para seleccionarlo'}
+        </p>
         <div className="rotate-controls">
           <button className="round-btn" aria-label="Girar a la izquierda" onClick={() => actions.rotate(1)}>
             <RotateIcon dir="left" />
@@ -97,7 +109,9 @@ export function App() {
         </div>
       </main>
 
-      <EditorPanel open={panelOpen} setOpen={setPanelOpen} />
+      {inEnv
+        ? <EnvironmentPanel open={panelOpen} setOpen={setPanelOpen} />
+        : <EditorPanel open={panelOpen} setOpen={setPanelOpen} />}
       <DialogHost />
     </div>
   );

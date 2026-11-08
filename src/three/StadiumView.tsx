@@ -15,11 +15,13 @@ import {
   tallestStand,
 } from '../geometry/modules';
 import { buildPitch } from './pitch';
+import { buildEnvironment, buildGridLines } from '../geometry/environment';
+import { cellFromPoint } from '../environment';
 
 const VIEW_HALF_H = 110;
 const VIEW_HALF_W = 130;
 const ROTATE_SPEED = 0.12;
-const MIN_ZOOM = 0.5;
+const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
 
 function disposeGroup(group: THREE.Object3D) {
@@ -71,6 +73,12 @@ export function StadiumView() {
     const structureGroup = new THREE.Group();
     const junctionGroup = new THREE.Group();
     world.add(structureGroup, standGroup, junctionGroup);
+
+    const envGroup = new THREE.Group();
+    const gridLines = buildGridLines();
+    gridLines.visible = false;
+    let envKey = '';
+    world.add(envGroup, gridLines);
 
     interface StandEntry { group: THREE.Group; key: string }
     interface StructureEntry { group: THREE.Group; key: string }
@@ -180,8 +188,18 @@ export function StadiumView() {
         junctionGroup.add(buildJunctions(st.exteriors, extents, anchors));
       }
 
+      // Entorno: cuadrícula y celdas pintadas
+      const envJson = JSON.stringify(st.environment);
+      if (envJson !== envKey) {
+        envKey = envJson;
+        disposeGroup(envGroup);
+        envGroup.clear();
+        envGroup.add(buildEnvironment(st.environment));
+      }
+      gridLines.visible = st.mode === 'environment';
+
       hitboxes.forEach((mesh, id) => {
-        (mesh.material as THREE.MeshBasicMaterial).opacity = id === st.selectedModule ? 0.25 : 0;
+        (mesh.material as THREE.MeshBasicMaterial).opacity = id === st.selectedModule && st.mode === 'stadium' ? 0.25 : 0;
       });
 
       targetAngle = st.rotationSteps * (Math.PI / 2);
@@ -251,12 +269,38 @@ export function StadiumView() {
       }
     };
 
+    // Pintado sobre la cuadrícula (modo entorno)
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    let painting = false;
+    let lastCell = '';
+    const paintAt = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(groundPlane, hit)) return;
+      const local = world.worldToLocal(hit);
+      const cell = cellFromPoint(local.x, local.z);
+      if (!cell) return;
+      const key = `${cell.i},${cell.j}`;
+      if (key === lastCell) return;
+      lastCell = key;
+      actions.paintCell(cell.i, cell.j);
+    };
+
     const onDown = (e: PointerEvent) => {
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 1) {
         down = { x: e.clientX, y: e.clientY };
+        if (getState().mode === 'environment') {
+          painting = true;
+          lastCell = '';
+          paintAt(e.clientX, e.clientY);
+        }
       } else {
         down = null;
+        painting = false;
         pinchDist = pointerDistance();
       }
     };
@@ -264,6 +308,7 @@ export function StadiumView() {
     const onMove = (e: PointerEvent) => {
       if (!pointers.has(e.pointerId)) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (painting && pointers.size === 1) paintAt(e.clientX, e.clientY);
       if (pointers.size === 2) {
         const d = pointerDistance();
         if (pinchDist > 0 && d > 0) applyZoom(zoom * (d / pinchDist));
@@ -275,16 +320,18 @@ export function StadiumView() {
     const onUp = (e: PointerEvent) => {
       const single = pointers.size === 1 && pointers.has(e.pointerId);
       pointers.delete(e.pointerId);
+      painting = false;
       const start = down;
       down = null;
       if (!single || !start) return;
       const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
       if (moved > 8) return;
-      pick(e.clientX, e.clientY);
+      if (getState().mode === 'stadium') pick(e.clientX, e.clientY);
     };
 
     const onCancel = (e: PointerEvent) => {
       pointers.delete(e.pointerId);
+      painting = false;
       down = null;
     };
 
@@ -318,6 +365,7 @@ export function StadiumView() {
       structures.forEach((e) => disposeGroup(e.group));
       hitboxes.forEach((m) => disposeGroup(m));
       disposeGroup(junctionGroup);
+      disposeGroup(envGroup);
       renderer.dispose();
       canvas.remove();
     };

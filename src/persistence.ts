@@ -1,8 +1,10 @@
 import { getState } from './store';
+import { sanitizeEnvironment } from './environment';
 import { LIMITS } from './config';
 import {
   DEFAULT_EXTERIOR,
   EXTERIOR_RANGES,
+  EnvCell,
   FLOOD_OPTIONS,
   MODULE_IDS,
   ModuleExterior,
@@ -27,6 +29,7 @@ export interface Project {
   savedAt: string;
   stands: Stand[];
   exteriors: Record<ModuleId, ModuleExterior>;
+  environment?: Record<string, EnvCell>;
 }
 
 export interface SavedStadium {
@@ -50,6 +53,7 @@ export function currentProject(name: string): Project {
     savedAt: new Date().toISOString(),
     stands: s.stands,
     exteriors: s.exteriors,
+    environment: s.environment,
   };
 }
 
@@ -127,6 +131,7 @@ export function parseProject(text: string): Project {
     savedAt: typeof raw.savedAt === 'string' ? raw.savedAt : new Date().toISOString(),
     stands: raw.stands.map(toStand),
     exteriors,
+    environment: sanitizeEnvironment(raw.environment),
   };
 }
 
