@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { actions } from '../store';
 import {
   DECO_OPTIONS,
@@ -44,13 +45,21 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 
 export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: ModuleExterior }) {
   const set = (patch: Partial<ModuleExterior>) => actions.setExterior(moduleId, patch);
+  // Acordeón: solo un apartado abierto a la vez
+  const [active, setActive] = useState<string>('Fachada');
+  const acc = (name: string) => ({
+    open: active === name,
+    onToggle: (e: React.SyntheticEvent<HTMLDetailsElement>) => {
+      if (e.currentTarget.open) setActive(name);
+    },
+  });
 
   return (
     <section className="editor">
       <h2 className="section-title">Exteriores y detalles</h2>
 
 
-      <details className="sub" open>
+      <details className="sub" {...acc("Fachada")}>
         <summary>Fachada</summary>
         <Select label="Estilo" value={ext.wall} options={WALL_OPTIONS} onChange={(v) => set({ wall: v })} />
         {ext.wall !== 'none' && (
@@ -66,7 +75,7 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
         )}
       </details>
 
-      <details className="sub">
+      <details className="sub" {...acc("Cubierta")}>
         <summary>Cubierta</summary>
         <Select label="Tipo" value={ext.roof} options={ROOF_OPTIONS} onChange={(v) => set({ roof: v })} />
         {ext.roof !== 'none' && (
@@ -99,7 +108,7 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
         )}
       </details>
 
-      <details className="sub">
+      <details className="sub" {...acc("Iluminación")}>
         <summary>Iluminación</summary>
         <Select label="Tipo" value={ext.flood} options={FLOOD_OPTIONS} onChange={(v) => set({ flood: v })} />
         {ext.flood !== 'none' && (
@@ -117,7 +126,7 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
         )}
       </details>
 
-      <details className="sub">
+      <details className="sub" {...acc("Marcador")}>
         <summary>Marcador</summary>
         <Select label="Tipo" value={ext.score} options={SCORE_OPTIONS} onChange={(v) => set({ score: v })} />
         {ext.score !== 'none' && (
@@ -130,7 +139,7 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
         )}
       </details>
 
-      <details className="sub">
+      <details className="sub" {...acc("Decoración")}>
         <summary>Decoración</summary>
         <Select label="Tipo" value={ext.deco} options={DECO_OPTIONS} onChange={(v) => set({ deco: v })} />
         {ext.deco !== 'none' && (
