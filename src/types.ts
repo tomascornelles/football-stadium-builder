@@ -183,36 +183,6 @@ export const EXTERIOR_RANGES: Partial<Record<keyof ModuleExterior, [number, numb
   roofDecoHeight: [2, 20],
 };
 
-export interface StylePreset {
-  id: string;
-  name: string;
-  hint: string;
-  values: Partial<ModuleExterior>;
-}
-
-/** Estilos de referencia, inspirados en estadios conocidos. Son aproximaciones, no réplicas. */
-export const STYLE_PRESETS: StylePreset[] = [
-  {
-    id: 'bernabeu', name: 'Bernabéu', hint: 'Torres altas y cubierta en voladizo',
-    values: { wall: 'concrete', wallHeight: 22, wallColor: '#d1d5db', roof: 'cantilever', roofHeight: 5, roofOverhang: 6, roofSlope: 10, roofColumns: true, roofColor: '#e5e7eb', deco: 'towers', decoCount: 2, decoHeight: 42, decoColor: '#e5e7eb', roofDeco: 'ridge', roofDecoCount: 1, roofDecoHeight: 3, roofDecoColor: '#ffffff' },
-  },
-  {
-    id: 'mestalla', name: 'Mestalla', hint: 'Fachada de ladrillo con arcos y marquesina',
-    values: { wall: 'brick', wallHeight: 16, wallColor: '#a4553a', roof: 'canopy', roofHeight: 5, roofOverhang: 4, roofColumns: true, roofColor: '#d6d3cd', deco: 'arches', decoCount: 6, decoHeight: 10, decoColor: '#d6c9b5', roofDeco: 'ridge', roofDecoCount: 1, roofDecoHeight: 3, roofDecoColor: '#c9a227' },
-  },
-  {
-    id: 'san-siro', name: 'San Siro', hint: 'Anillo de arcos y cubierta curva',
-    values: { wall: 'concrete', wallHeight: 20, wallColor: '#cbd5e1', roof: 'arch', roofHeight: 4, roofOverhang: 5, roofSlope: 14, roofColumns: true, roofColor: '#e5e7eb', deco: 'arches', decoCount: 10, decoHeight: 12, decoColor: '#cbd5e1', roofDeco: 'trusses', roofDecoCount: 5, roofDecoHeight: 14, roofDecoColor: '#b91c1c' },
-  },
-  {
-    id: 'old-trafford', name: 'Old Trafford', hint: 'Ladrillo con soportes y pilares',
-    values: { wall: 'brick', wallHeight: 20, wallColor: '#8b3a2b', roof: 'cantilever', roofHeight: 4, roofOverhang: 5, roofSlope: 12, roofColumns: true, roofColor: '#9ca3af', deco: 'struts', decoCount: 8, decoHeight: 26, decoColor: '#4b5563', roofDeco: 'trusses', roofDecoCount: 6, roofDecoHeight: 10, roofDecoColor: '#374151' },
-  },
-  {
-    id: 'allianz', name: 'Allianz Arena', hint: 'Fachada de cristal con pilares',
-    values: { wall: 'glass', wallHeight: 26, wallColor: '#e0f2fe', roof: 'canopy', roofHeight: 4, roofOverhang: 3, roofColumns: false, roofColor: '#f1f5f9', deco: 'pillars', decoCount: 12, decoHeight: 26, decoColor: '#f1f5f9', roofDeco: 'masts', roofDecoCount: 6, roofDecoHeight: 14, roofDecoColor: '#f1f5f9' },
-  },
-];
 
 /* ---------- Entorno ---------- */
 

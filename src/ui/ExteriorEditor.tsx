@@ -1,10 +1,7 @@
 import { actions } from '../store';
-import { confirmDialog } from './dialog';
 import {
   DECO_OPTIONS,
   ROOF_DECO_OPTIONS,
-  STYLE_PRESETS,
-  StylePreset,
   FLOOD_OPTIONS,
   ModuleExterior,
   ModuleId,
@@ -52,28 +49,6 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
     <section className="editor">
       <h2 className="section-title">Exteriores y detalles</h2>
 
-      <details className="sub">
-        <summary>Estilos de referencia</summary>
-        <p className="hint-text">Aplica un conjunto completo de fachada, cubierta y decoración a todos los módulos.</p>
-        {STYLE_PRESETS.map((preset: StylePreset) => (
-          <button
-            key={preset.id}
-            className="btn full preset"
-            onClick={async () => {
-              const ok = await confirmDialog({
-                title: `Estilo ${preset.name}`,
-                message: `Se aplicará a todos los módulos, sustituyendo sus fachadas, cubiertas y decoración. ${preset.hint}.`,
-                confirmLabel: 'Aplicar',
-                danger: true,
-              });
-              if (ok) actions.applyPreset(preset.values);
-            }}
-          >
-            <span>{preset.name}</span>
-            <small>{preset.hint}</small>
-          </button>
-        ))}
-      </details>
 
       <details className="sub" open>
         <summary>Fachada</summary>

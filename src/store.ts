@@ -252,15 +252,6 @@ export const actions = {
     });
   },
 
-  /** Aplica un estilo de referencia completo a todos los módulos. */
-  applyPreset(values: Partial<ModuleExterior>) {
-    commit(() => {
-      const clean = { ...DEFAULT_EXTERIOR, ...sanitize(values) };
-      const all = {} as Record<ModuleId, ModuleExterior>;
-      for (const id of MODULE_IDS) all[id] = { ...clean };
-      return { exteriors: all };
-    });
-  },
 
   setMode(mode: AppMode) {
     commit({ mode });

@@ -368,3 +368,22 @@ input.switch { width: 42px; height: 24px; accent-color: var(--accent); cursor: p
 }
 .tool-btn.active { border-color: var(--accent); background: rgba(94, 234, 212, 0.16); }
 .tool-swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.4); flex: none; }
+
+/* v0.13.1: selector Estadio/Entorno en pastilla */
+.segmented {
+  display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  border-radius: 999px; background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+}
+.segmented button {
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--muted);
+  background: transparent; border: none; border-radius: 999px;
+  padding: 6px 16px; min-height: 34px; cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.segmented button:hover { color: var(--text); }
+.segmented button.active {
+  background: #f5f7fb; color: #0b1220; font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.menu-item.danger { color: #ffd1d1; }

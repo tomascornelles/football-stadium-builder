@@ -39,8 +39,8 @@ export function App() {
     fn();
   };
 
-  const toggleMode = () => {
-    actions.setMode(inEnv ? 'stadium' : 'environment');
+  const switchMode = (mode: 'stadium' | 'environment') => {
+    actions.setMode(mode);
     setPanelOpen(true);
   };
 
@@ -55,10 +55,24 @@ export function App() {
           </div>
         </div>
         <div className="tools">
-          <button className="btn" onClick={toggleMode} title="Cambiar entre estadio y entorno">
-            {inEnv ? 'Estadio' : 'Entorno'}
-          </button>
-          <button className="btn ghost" onClick={() => resetFlow()}>Reiniciar</button>
+          <div className="segmented" role="tablist" aria-label="Modo">
+            <button
+              role="tab"
+              aria-selected={!inEnv}
+              className={!inEnv ? 'active' : ''}
+              onClick={() => switchMode('stadium')}
+            >
+              Estadio
+            </button>
+            <button
+              role="tab"
+              aria-selected={inEnv}
+              className={inEnv ? 'active' : ''}
+              onClick={() => switchMode('environment')}
+            >
+              Entorno
+            </button>
+          </div>
           <div className="menu-wrap">
             <button
               className="btn icon"
@@ -76,6 +90,7 @@ export function App() {
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => libraryFlow())}>Cargar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => exportFlow())}>Exportar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => fileRef.current?.click())}>Importar</button>
+                  <button className="menu-item danger" role="menuitem" onClick={fromMenu(() => resetFlow())}>Reiniciar</button>
                 </div>
               </>
             )}
