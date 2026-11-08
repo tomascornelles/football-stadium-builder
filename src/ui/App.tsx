@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { StadiumView } from '../three/StadiumView';
 import { actions, getState, subscribe } from '../store';
 import { APP_VERSION } from '../config';
@@ -27,6 +28,16 @@ export function App() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const menuBtn = useRef<HTMLButtonElement>(null);
+
+  const toggleMenu = () => {
+    if (!menuOpen && menuBtn.current) {
+      const r = menuBtn.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
+    }
+    setMenuOpen((o) => !o);
+  };
   const inEnv = state.mode === 'environment';
 
   // Al seleccionar una grada se abre el editor
@@ -75,24 +86,26 @@ export function App() {
           </div>
           <div className="menu-wrap">
             <button
+              ref={menuBtn}
               className="btn icon"
               aria-label="Menú"
               aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((o) => !o)}
+              onClick={toggleMenu}
             >
               ☰
             </button>
-            {menuOpen && (
+            {menuOpen && createPortal(
               <>
                 <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
-                <div className="menu glass" role="menu">
+                <div className="menu glass" role="menu" style={{ top: menuPos.top, right: menuPos.right }}>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => saveFlow())}>Guardar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => libraryFlow())}>Cargar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => exportFlow())}>Exportar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => fileRef.current?.click())}>Importar</button>
                   <button className="menu-item danger" role="menuitem" onClick={fromMenu(() => resetFlow())}>Reiniciar</button>
                 </div>
-              </>
+              </>,
+              document.body,
             )}
           </div>
           <input
