@@ -567,6 +567,9 @@ export function buildModuleStructures(
       const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.6, 6), lightMat);
       head.position.set(p.x, h, p.z);
       head.rotation.y = faceRotation(frame.at(t).n);
+      // Marca el cabezal como foco: de noche emite luz puntual
+      head.userData.floodHead = true;
+      head.userData.lightColor = ext.floodColor;
       group.add(head);
     }
   } else if (ext.flood === 'bar') {

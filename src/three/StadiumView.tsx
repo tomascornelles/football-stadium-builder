@@ -69,6 +69,15 @@ export function StadiumView() {
     stadiumLight.position.set(0, 70, 0);
     scene.add(ambient, sun, stadiumLight);
 
+    // Focos del estadio: luces puntuales de noche (limitadas a 8 por rendimiento)
+    const FLOOD_LIGHTS = 8;
+    const floodLights: THREE.PointLight[] = [];
+    for (let k = 0; k < FLOOD_LIGHTS; k++) {
+      const l = new THREE.PointLight(0xfff1c1, 0, 140, 2);
+      scene.add(l);
+      floodLights.push(l);
+    }
+
     // Proyecta y recibe sombras en todo el objeto
     const shadowsOn = (obj: THREE.Object3D) => {
       obj.traverse((o) => {
@@ -81,6 +90,27 @@ export function StadiumView() {
     };
 
     let lastNight: boolean | null = null;
+
+    const headPos = new THREE.Vector3();
+    /** Coloca las luces de los focos sobre sus cabezales y las apaga de día. */
+    const updateFloodLights = (night: boolean) => {
+      const heads: THREE.Object3D[] = [];
+      structureGroup.traverse((o) => {
+        if (o.userData.floodHead) heads.push(o);
+      });
+      scene.updateMatrixWorld(true);
+      floodLights.forEach((l, k) => {
+        const h = heads[k];
+        if (night && h) {
+          h.getWorldPosition(headPos);
+          l.position.copy(headPos);
+          l.color.set(h.userData.lightColor as string);
+          l.intensity = 1200;
+        } else {
+          l.intensity = 0;
+        }
+      });
+    };
     const applyLighting = (night: boolean) => {
       if (night) {
         ambient.color.set(0x8fa6d4);
@@ -264,6 +294,9 @@ export function StadiumView() {
       hitboxes.forEach((mesh, id) => {
         (mesh.material as THREE.MeshBasicMaterial).opacity = id === st.selectedModule && st.mode === 'stadium' ? 0.25 : 0;
       });
+
+      // Luces de los focos, colocadas en los cabezales del estadio
+      updateFloodLights(night);
 
       targetAngle = st.rotationSteps * (Math.PI / 2);
     }
