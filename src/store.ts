@@ -1,6 +1,8 @@
 import {
   AppMode,
   AppState,
+  BUILDING_HEIGHT,
+  BuildingKind,
   DEFAULT_EXTERIOR,
   EXTERIOR_RANGES,
   MODULE_IDS,
@@ -32,7 +34,7 @@ function defaultState(): AppState {
     environment: {},
     mode: 'stadium',
     tool: 'road',
-    buildingHeight: 12,
+    buildingKind: 'building',
     buildingColor: '#d6d3cd',
   };
 }
@@ -72,7 +74,7 @@ function load(): AppState {
       environment: sanitizeEnvironment(parsed.environment),
       mode: 'stadium',
       tool: 'road',
-      buildingHeight: 12,
+      buildingKind: 'building',
       buildingColor: '#d6d3cd',
       selectedModule: MODULE_IDS.includes(parsed.selectedModule as ModuleId)
         ? (parsed.selectedModule as ModuleId) : 'west',
@@ -261,15 +263,15 @@ export const actions = {
     commit({ tool });
   },
 
-  setBuildingHeight(height: number) {
-    commit({ buildingHeight: clamp(height, 3, 60) });
+  setBuildingKind(kind: BuildingKind) {
+    commit({ buildingKind: kind });
   },
 
   setBuildingColor(color: string) {
     commit({ buildingColor: color });
   },
 
-  /** Pinta la celda (i, j) con la herramienta activa. */
+  /** Pinta la celda (i, j) con la herramienta activa. Borrar devuelve la celda a parque. */
   paintCell(i: number, j: number) {
     commit((s) => {
       const key = cellKey(i, j);
@@ -281,14 +283,20 @@ export const actions = {
           break;
         case 'road':
         case 'path':
-        case 'park':
           env[key] = { type: s.tool };
           break;
-        case 'tree':
-          if (cur?.type === 'park') env[key] = { ...cur, tree: true };
+        case 'tree': {
+          const base: EnvCell = cur ?? { type: 'park' };
+          if (base.type === 'park') env[key] = { ...base, tree: true };
           break;
+        }
         case 'building':
-          env[key] = { type: 'building', height: s.buildingHeight, color: s.buildingColor };
+          env[key] = {
+            type: 'building',
+            kind: s.buildingKind,
+            height: BUILDING_HEIGHT[s.buildingKind],
+            color: s.buildingColor,
+          };
           break;
       }
       return { environment: env };

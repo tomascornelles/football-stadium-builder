@@ -6,7 +6,7 @@ import { APP_VERSION } from '../config';
 import { EditorPanel } from './EditorPanel';
 import { EnvironmentPanel } from './EnvironmentPanel';
 import { DialogHost } from './DialogHost';
-import { exportFlow, importFlow, libraryFlow, resetFlow, saveFlow } from './flows';
+import { exportFlow, importFlow, libraryFlow, pngFlow, resetFlow, saveFlow } from './flows';
 
 function RotateIcon({ dir }: { dir: 'left' | 'right' }) {
   // Flechas curvas de trazo
@@ -101,6 +101,7 @@ export function App() {
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => saveFlow())}>Guardar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => libraryFlow())}>Cargar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => exportFlow())}>Exportar</button>
+                  <button className="menu-item" role="menuitem" onClick={fromMenu(() => pngFlow())}>Descargar PNG</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => fileRef.current?.click())}>Importar</button>
                   <button className="menu-item danger" role="menuitem" onClick={fromMenu(() => resetFlow())}>Reiniciar</button>
                 </div>

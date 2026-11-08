@@ -1,9 +1,8 @@
-import { CellType, EnvCell } from './types';
+import { BUILDING_HEIGHT, BuildingKind, CellType, EnvCell } from './types';
 import { ENV_CELL, ENV_HALF, ENV_N } from './config';
 
 export const CELL_TYPES: CellType[] = ['road', 'path', 'park', 'building'];
-
-const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+const KINDS: BuildingKind[] = ['house', 'building', 'tower'];
 
 export const cellKey = (i: number, j: number) => `${i},${j}`;
 
@@ -15,7 +14,7 @@ export function cellFromPoint(x: number, z: number): { i: number; j: number } | 
   return { i, j };
 }
 
-/** Valida el entorno de un archivo o del almacenamiento local. */
+/** Valida el entorno de un archivo o del almacenamiento local. Las celdas sin datos son parque. */
 export function sanitizeEnvironment(raw: unknown): Record<string, EnvCell> {
   const out: Record<string, EnvCell> = {};
   if (!raw || typeof raw !== 'object') return out;
@@ -27,7 +26,9 @@ export function sanitizeEnvironment(raw: unknown): Record<string, EnvCell> {
     if (i >= ENV_N || j >= ENV_N || !val || !CELL_TYPES.includes(val.type)) continue;
     const cell: EnvCell = { type: val.type };
     if (val.type === 'building') {
-      cell.height = clamp(Number(val.height) || 12, 3, 60);
+      const kind: BuildingKind = KINDS.includes(val.kind) ? val.kind : 'building';
+      cell.kind = kind;
+      cell.height = BUILDING_HEIGHT[kind];
       cell.color = typeof val.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(val.color) ? val.color : '#d6d3cd';
     }
     if (val.type === 'park' && val.tree === true) cell.tree = true;

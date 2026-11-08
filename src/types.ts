@@ -187,13 +187,17 @@ export const EXTERIOR_RANGES: Partial<Record<keyof ModuleExterior, [number, numb
 /* ---------- Entorno ---------- */
 
 export type CellType = 'road' | 'path' | 'park' | 'building';
-export type EnvTool = 'road' | 'path' | 'park' | 'tree' | 'building' | 'erase';
+export type EnvTool = 'road' | 'path' | 'tree' | 'building' | 'erase';
+export type BuildingKind = 'house' | 'building' | 'tower';
+
+export const BUILDING_HEIGHT: Record<BuildingKind, number> = { house: 7, building: 24, tower: 50 };
 export type AppMode = 'stadium' | 'environment';
 
 /** Celda ocupada de la cuadrícula. Las celdas vacías no aparecen en el mapa. */
 export interface EnvCell {
   type: CellType;
-  /** Solo edificios: altura en metros. */
+  /** Solo edificios: tipo (casa, edificio o torre) y altura en metros. */
+  kind?: BuildingKind;
   height?: number;
   /** Solo edificios: color de fachada. */
   color?: string;
@@ -204,10 +208,15 @@ export interface EnvCell {
 export const ENV_TOOLS: { value: EnvTool; label: string; color: string }[] = [
   { value: 'road', label: 'Carretera', color: '#4b5563' },
   { value: 'path', label: 'Camino', color: '#d6c7a1' },
-  { value: 'park', label: 'Parque', color: '#4f9d4f' },
   { value: 'tree', label: 'Árboles', color: '#2f855a' },
   { value: 'building', label: 'Edificio', color: '#d6d3cd' },
   { value: 'erase', label: 'Borrar', color: '#1f2937' },
+];
+
+export const BUILDING_OPTIONS: Option<BuildingKind>[] = [
+  { value: 'house', label: 'Casa' },
+  { value: 'building', label: 'Edificio' },
+  { value: 'tower', label: 'Torre' },
 ];
 
 export interface AppState {
@@ -220,7 +229,7 @@ export interface AppState {
   environment: Record<string, EnvCell>;
   mode: AppMode;
   tool: EnvTool;
-  buildingHeight: number;
+  buildingKind: BuildingKind;
   buildingColor: string;
 }
 

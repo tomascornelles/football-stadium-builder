@@ -17,6 +17,7 @@ import {
 import { buildPitch } from './pitch';
 import { buildEnvironment, buildGridLines } from '../geometry/environment';
 import { cellFromPoint } from '../environment';
+import { registerCapture } from '../capture';
 
 const VIEW_HALF_H = 110;
 const VIEW_HALF_W = 130;
@@ -38,7 +39,7 @@ export function StadiumView() {
   useEffect(() => {
     const container = containerRef.current!;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
@@ -347,11 +348,17 @@ export function StadiumView() {
     canvas.addEventListener('pointerleave', onCancel);
     canvas.addEventListener('wheel', onWheel, { passive: false });
 
+    registerCapture(() => {
+      renderer.render(scene, camera);
+      return renderer.domElement;
+    });
+
     const unsubscribe = subscribe(sync);
     sync();
     animate();
 
     return () => {
+      registerCapture(null);
       unsubscribe();
       cancelAnimationFrame(frameId);
       observer.disconnect();

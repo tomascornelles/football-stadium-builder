@@ -7,10 +7,13 @@ import {
   findSavedByName,
   parseProject,
   saveToLibrary,
+  slugify,
 } from '../persistence';
 import { alertDialog, confirmDialog, loadDialog, saveDialog } from './dialog';
+import { randomStadiumName } from '../names';
+import { pngDataUrl, thumbnailDataUrl } from '../capture';
 
-const defaultName = () => `Estadio ${new Date().toLocaleDateString('es-ES')}`;
+const defaultName = () => randomStadiumName();
 
 /** Carga un proyecto reemplazando el actual, previa confirmación. */
 export async function requestLoad(project: Project, label: string): Promise<boolean> {
@@ -39,7 +42,7 @@ export async function saveFlow() {
   }
 
   try {
-    saveToLibrary(name);
+    saveToLibrary(name, thumbnailDataUrl() ?? undefined);
     await alertDialog('Guardado', `El estadio «${name}» se ha guardado en este dispositivo.`);
   } catch {
     await alertDialog('Error', 'No se pudo guardar: el almacenamiento del navegador está lleno.');
@@ -50,6 +53,23 @@ export async function exportFlow() {
   const name = await saveDialog('Exportar estadio', defaultName(), 'Exportar');
   if (!name) return;
   downloadProject(currentProject(name));
+}
+
+/** Descarga una imagen PNG del estadio y su entorno. */
+export async function pngFlow() {
+  const name = await saveDialog('Descargar PNG', defaultName(), 'Descargar');
+  if (!name) return;
+  const url = pngDataUrl();
+  if (!url) {
+    await alertDialog('Error', 'No se pudo generar la imagen.');
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${slugify(name)}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 export function libraryFlow() {

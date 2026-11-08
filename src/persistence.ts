@@ -37,6 +37,8 @@ export interface SavedStadium {
   name: string;
   savedAt: string;
   project: Project;
+  /** Miniatura JPEG en base64 (opcional). */
+  thumb?: string;
 }
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -159,7 +161,7 @@ export function findSavedByName(name: string): SavedStadium | undefined {
 }
 
 /** Guarda el estadio actual en la biblioteca. Si ya existe el nombre, lo reemplaza. */
-export function saveToLibrary(name: string): SavedStadium {
+export function saveToLibrary(name: string, thumb?: string): SavedStadium {
   const list = listSaved();
   const project = currentProject(name);
   const existing = list.find((e) => e.name === name);
@@ -168,6 +170,7 @@ export function saveToLibrary(name: string): SavedStadium {
     name,
     savedAt: project.savedAt,
     project,
+    thumb,
   };
   const next = existing
     ? list.map((e) => (e.id === existing.id ? entry : e))

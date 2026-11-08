@@ -113,6 +113,11 @@ function LoadBody() {
         <ul className="saved-list">
           {items.map((item) => (
             <li key={item.id} className="saved-item">
+              {item.thumb ? (
+                <img className="thumb" src={item.thumb} alt="" />
+              ) : (
+                <div className="thumb placeholder" aria-hidden>⚽</div>
+              )}
               <div className="info">
                 <strong>{item.name}</strong>
                 <small>{new Date(item.savedAt).toLocaleString('es-ES')} · {item.project.stands.length} gradas</small>

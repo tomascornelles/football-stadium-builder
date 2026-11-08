@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { actions, getState, subscribe } from '../store';
-import { ENV_TOOLS } from '../types';
-import { Slider } from './Slider';
+import { BUILDING_OPTIONS, ENV_TOOLS } from '../types';
 import { confirmDialog } from './dialog';
 
 interface EnvironmentPanelProps {
@@ -39,18 +38,27 @@ export function EnvironmentPanel({ open, setOpen }: EnvironmentPanelProps) {
             ))}
           </div>
           <p className="hint-text">
-            Toca o arrastra sobre la cuadrícula para pintar. Los árboles solo caben en celdas de parque.
+            Todo el entorno es parque por defecto. Borrar devuelve la celda a parque.
+            Los árboles solo caben en parques.
           </p>
         </section>
 
         {state.tool === 'building' && (
           <section className="editor">
-            <h2 className="section-title">Edificio</h2>
-            <Slider
-              label="Altura" unit="m" value={state.buildingHeight}
-              min={3} max={60} step={1}
-              onChange={(v) => actions.setBuildingHeight(v)}
-            />
+            <h2 className="section-title">Tipo de edificio</h2>
+            <div className="segmented kind-segmented" role="tablist">
+              {BUILDING_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  role="tab"
+                  aria-selected={state.buildingKind === o.value}
+                  className={state.buildingKind === o.value ? 'active' : ''}
+                  onClick={() => actions.setBuildingKind(o.value)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
             <label className="field-row inline">
               <span>Color de fachada</span>
               <input
@@ -64,13 +72,13 @@ export function EnvironmentPanel({ open, setOpen }: EnvironmentPanelProps) {
 
         <section className="editor">
           <h2 className="section-title">Cuadrícula</h2>
-          <p className="hint-text">{cells} celdas ocupadas</p>
+          <p className="hint-text">{cells} celdas modificadas</p>
           <button
             className="btn danger full"
             onClick={async () => {
               const ok = await confirmDialog({
                 title: 'Borrar entorno',
-                message: 'Se borrarán todas las celdas pintadas. El estadio no se modifica.',
+                message: 'Todas las celdas vuelven a ser parque. El estadio no se modifica.',
                 confirmLabel: 'Borrar',
                 danger: true,
               });
