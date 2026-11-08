@@ -103,7 +103,7 @@ function isSurface(env: Record<string, EnvCell>, i: number, j: number) {
 }
 
 /** Carreteras y caminos unidos. Cruces con semáforo; bloques de 3 × 3 son glorietas. */
-function buildRoads(env: Record<string, EnvCell>): THREE.Group {
+function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
   const group = new THREE.Group();
   const sidewalk = new PolyBuffer(Y.sidewalk);
   const road = new PolyBuffer(Y.road);
@@ -112,6 +112,7 @@ function buildRoads(env: Record<string, EnvCell>): THREE.Group {
   const island = new PolyBuffer(Y.island);
   const cars: THREE.Mesh[] = [];
   const lights: { x: number; z: number; color: number }[] = [];
+  const lamps: [number, number][] = [];
 
   // Glorietas: un bloque de 3 × 3 carreteras, con su centro como isla
   const roundCenters = new Set<string>();
@@ -142,10 +143,36 @@ function buildRoads(env: Record<string, EnvCell>): THREE.Group {
       continue;
     }
 
+    // Las celdas interiores de una glorieta no tienen asfalto propio: es un anillo circular
+    if (inRound.has(key) && !roundCenters.has(key)) continue;
+
     if (roundCenters.has(key)) {
       sidewalk.ring(cx, cz, ROUND_ISLAND - 1, ROUND_OUTER + SIDEWALK + 1.5);
       road.ring(cx, cz, ROUND_ISLAND, ROUND_OUTER);
       island.disc(cx, cz, ROUND_ISLAND);
+
+      // Carril discontinuo circular, en el centro del anillo
+      const seg = 48;
+      const laneR = (ROUND_ISLAND + ROUND_OUTER) / 2;
+      for (let k = 0; k < seg; k += 2) {
+        const a0 = (k / seg) * Math.PI * 2;
+        const a1 = ((k + 1) / seg) * Math.PI * 2;
+        const at = (a: number, r: number): [number, number] => [cx + Math.cos(a) * r, cz + Math.sin(a) * r];
+        lines.polygon([at(a0, laneR - 0.2), at(a1, laneR - 0.2), at(a1, laneR + 0.2), at(a0, laneR + 0.2)]);
+      }
+
+      // Farolas alrededor de la glorieta
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
+        lamps.push([cx + Math.cos(a) * 25, cz + Math.sin(a) * 25]);
+      }
+
+      // Accesos: carreteras que llegan a la glorieta por el centro de cada lado
+      for (const [dx, dz] of DIRS) {
+        if (!isRoad(env, i + 2 * dx, j + 2 * dz)) continue;
+        sidewalk.arm(cx, cz, dx, dz, ROUND_OUTER - 4, 31, ROAD_W + 2 * SIDEWALK);
+        road.arm(cx, cz, dx, dz, ROUND_ISLAND, 31, ROAD_W);
+      }
       continue;
     }
 
@@ -177,6 +204,9 @@ function buildRoads(env: Record<string, EnvCell>): THREE.Group {
       cars.push(car);
     }
 
+    // Farola en el borde de cada calle
+    if (!block) lamps.push([cx - 7.5, cz + 7.5]);
+
     // Semáforo en los cruces de tres o cuatro brazos
     if (!block && arms.length >= 3) {
       lights.push({
@@ -194,6 +224,25 @@ function buildRoads(env: Record<string, EnvCell>): THREE.Group {
   add(surfaceMesh(lines.geometry(), COLORS.line));
   add(surfaceMesh(island.geometry(), COLORS.grass));
   cars.forEach((c) => group.add(c));
+
+  if (night) {
+    const poleMat = new THREE.MeshLambertMaterial({ color: COLORS.steel, flatShading: true });
+    const headMat = new THREE.MeshBasicMaterial({ color: 0xfff1c1 });
+    const glowMat = glowMaterial();
+    const glowGeo = new THREE.PlaneGeometry(12, 12);
+    glowGeo.rotateX(-Math.PI / 2);
+    for (const [x, z] of lamps) {
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.3, 6, 0.3), poleMat);
+      pole.position.set(x, 3, z);
+      group.add(pole);
+      const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 1.2), headMat);
+      head.position.set(x, 6.2, z);
+      group.add(head);
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.position.set(x, 0.07, z);
+      group.add(glow);
+    }
+  }
 
   const steel = new THREE.MeshLambertMaterial({ color: COLORS.steel, flatShading: true });
   for (const l of lights) {
@@ -241,8 +290,73 @@ function buildBuilding(group: THREE.Group, cx: number, cz: number, kind: Buildin
   }
 }
 
-/** Entorno: césped de parque por defecto, carreteras, caminos, árboles y edificios. */
-export function buildEnvironment(env: Record<string, EnvCell>): THREE.Group {
+let glowTex: THREE.CanvasTexture | null = null;
+
+/** Halo luminoso aditivo, para las farolas y los focos del entorno. */
+function glowMaterial(): THREE.MeshBasicMaterial {
+  if (!glowTex) {
+    const c = document.createElement('canvas');
+    c.width = 64;
+    c.height = 64;
+    const g = c.getContext('2d')!;
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255, 214, 140, 0.95)');
+    grad.addColorStop(1, 'rgba(255, 214, 140, 0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    glowTex = new THREE.CanvasTexture(c);
+  }
+  return new THREE.MeshBasicMaterial({
+    map: glowTex,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+}
+
+/** Ventanas iluminadas de los edificios, en una sola geometría. */
+function windowsMesh(env: Record<string, EnvCell>): THREE.Mesh | null {
+  const pos: number[] = [];
+  const faces: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (const [key, cell] of Object.entries(env)) {
+    if (cell.type !== 'building') continue;
+    const [i, j] = key.split(',').map(Number);
+    const kind = cell.kind ?? 'building';
+    const h = cell.height ?? BUILDING_HEIGHT[kind];
+    const s = kind === 'house' ? 7 : kind === 'tower' ? 4 : 8;
+    const cx = cellCenter(i);
+    const cz = cellCenter(j);
+    const cols = Math.max(2, Math.floor((2 * s - 2) / 3));
+    const rows = Math.max(1, Math.floor((h - 3) / 3.5));
+    faces.forEach(([nx, nz], f) => {
+      const tx = -nz;
+      const tz = nx;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (seeded(i * 31.7 + j * 17.3 + f * 11.1 + r * 3.3 + c * 1.7) > 0.45) continue;
+          const u = -s + 1.5 + ((c + 0.5) * (2 * s - 3)) / cols;
+          const y = 2.5 + ((r + 0.5) * (h - 4)) / rows;
+          const ox = cx + nx * (s + 0.05) + tx * u;
+          const oz = cz + nz * (s + 0.05) + tz * u;
+          const hw = 0.6;
+          const hh = 0.7;
+          const a = [ox - tx * hw, y - hh, oz - tz * hw];
+          const b = [ox + tx * hw, y - hh, oz + tz * hw];
+          const cc = [ox + tx * hw, y + hh, oz + tz * hw];
+          const d = [ox - tx * hw, y + hh, oz - tz * hw];
+          pos.push(...a, ...b, ...cc, ...a, ...cc, ...d);
+        }
+      }
+    });
+  }
+  if (pos.length === 0) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffd98a, side: THREE.DoubleSide }));
+}
+
+/** Entorno: césped de parque por defecto, carreteras, caminos, árboles y edificios. De noche, con luces. */
+export function buildEnvironment(env: Record<string, EnvCell>, night = false): THREE.Group {
   const group = new THREE.Group();
 
   const grass = new THREE.Mesh(
@@ -284,7 +398,11 @@ export function buildEnvironment(env: Record<string, EnvCell>): THREE.Group {
     }
   }
 
-  group.add(buildRoads(env));
+  group.add(buildRoads(env, night));
+  if (night) {
+    const w = windowsMesh(env);
+    if (w) group.add(w);
+  }
   return group;
 }
 

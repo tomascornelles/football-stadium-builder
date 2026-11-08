@@ -41,6 +41,8 @@ export function StadiumView() {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -48,10 +50,56 @@ export function StadiumView() {
     camera.position.set(200, 200, 200);
     camera.lookAt(0, 0, 0);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+    const sun = new THREE.DirectionalLight(0xffffff, 0.9);
     sun.position.set(-80, 160, 60);
-    scene.add(sun);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.0008;
+    const shadowCam = sun.shadow.camera as THREE.OrthographicCamera;
+    shadowCam.left = -180;
+    shadowCam.right = 180;
+    shadowCam.top = 180;
+    shadowCam.bottom = -180;
+    shadowCam.near = 10;
+    shadowCam.far = 700;
+    shadowCam.updateProjectionMatrix();
+    // Luz del estadio: un foco cálido sobre el campo, solo de noche
+    const stadiumLight = new THREE.PointLight(0xffe4b5, 0, 420, 1);
+    stadiumLight.position.set(0, 70, 0);
+    scene.add(ambient, sun, stadiumLight);
+
+    // Proyecta y recibe sombras en todo el objeto
+    const shadowsOn = (obj: THREE.Object3D) => {
+      obj.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) {
+          m.castShadow = true;
+          m.receiveShadow = true;
+        }
+      });
+    };
+
+    let lastNight: boolean | null = null;
+    const applyLighting = (night: boolean) => {
+      if (night) {
+        ambient.color.set(0x8fa6d4);
+        ambient.intensity = 0.28;
+        sun.color.set(0x9db4ff);
+        sun.intensity = 0.15;
+        sun.castShadow = false;
+        stadiumLight.intensity = 3;
+        scene.background = new THREE.Color(0x060b16);
+      } else {
+        ambient.color.set(0xffffff);
+        ambient.intensity = 0.7;
+        sun.color.set(0xffffff);
+        sun.intensity = 0.9;
+        sun.castShadow = true;
+        stadiumLight.intensity = 0;
+        scene.background = null;
+      }
+    };
 
     const world = new THREE.Group();
     scene.add(world);
@@ -63,6 +111,7 @@ export function StadiumView() {
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.05;
+    ground.receiveShadow = true;
     world.add(ground);
 
     const hitboxes = new Map<ModuleId, THREE.Mesh>();
@@ -107,6 +156,7 @@ export function StadiumView() {
           disposeGroup(apron);
         }
         apron = buildApron(anchors);
+        apron.receiveShadow = true;
         world.add(apron);
       }
 
@@ -138,6 +188,7 @@ export function StadiumView() {
             disposeGroup(entry.group);
           }
           const group = buildStandGroup(s, base, anchors);
+          shadowsOn(group);
           standGroup.add(group);
           entry = { group, key };
           entries.set(s.id, entry);
@@ -173,6 +224,7 @@ export function StadiumView() {
             disposeGroup(current.group);
           }
           const group = buildModuleStructures(id, ext, extent, anchors, tallest);
+          shadowsOn(group);
           structureGroup.add(group);
           structures.set(id, { group, key });
         }
@@ -186,16 +238,25 @@ export function StadiumView() {
         junctionKey = jKey;
         disposeGroup(junctionGroup);
         junctionGroup.clear();
-        junctionGroup.add(buildJunctions(st.exteriors, extents, anchors));
+        const jg = buildJunctions(st.exteriors, extents, anchors);
+        shadowsOn(jg);
+        junctionGroup.add(jg);
       }
 
       // Entorno: cuadrícula y celdas pintadas
-      const envJson = JSON.stringify(st.environment);
+      const night = st.lighting === 'night';
+      if (night !== lastNight) {
+        lastNight = night;
+        applyLighting(night);
+      }
+      const envJson = JSON.stringify([st.environment, night]);
       if (envJson !== envKey) {
         envKey = envJson;
         disposeGroup(envGroup);
         envGroup.clear();
-        envGroup.add(buildEnvironment(st.environment));
+        const eg = buildEnvironment(st.environment, night);
+        shadowsOn(eg);
+        envGroup.add(eg);
       }
       gridLines.visible = st.mode === 'environment';
 

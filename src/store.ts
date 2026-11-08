@@ -2,6 +2,7 @@ import {
   AppMode,
   AppState,
   BUILDING_HEIGHT,
+  Lighting,
   BuildingKind,
   DEFAULT_EXTERIOR,
   EXTERIOR_RANGES,
@@ -36,6 +37,7 @@ function defaultState(): AppState {
     tool: 'road',
     buildingKind: 'building',
     buildingColor: '#d6d3cd',
+    lighting: 'day',
   };
 }
 
@@ -76,6 +78,7 @@ function load(): AppState {
       tool: 'road',
       buildingKind: 'building',
       buildingColor: '#d6d3cd',
+      lighting: parsed.lighting === 'night' ? 'night' : 'day',
       selectedModule: MODULE_IDS.includes(parsed.selectedModule as ModuleId)
         ? (parsed.selectedModule as ModuleId) : 'west',
       selectedStandId: null,
@@ -108,6 +111,7 @@ function commit(patch: Partial<AppState> | ((s: AppState) => Partial<AppState>))
       environment: state.environment,
       selectedModule: state.selectedModule,
       rotationSteps: state.rotationSteps,
+      lighting: state.lighting,
     }));
   } catch {
     /* almacenamiento no disponible: la sesión sigue funcionando */
@@ -261,6 +265,10 @@ export const actions = {
 
   setTool(tool: EnvTool) {
     commit({ tool });
+  },
+
+  setLighting(lighting: Lighting) {
+    commit({ lighting });
   },
 
   setBuildingKind(kind: BuildingKind) {

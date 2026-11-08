@@ -487,3 +487,7 @@ select, .field-row.inline select, .modal input[type="text"] {
 }
 .kind-segmented { width: 100%; }
 .kind-segmented button { flex: 1; }
+
+/* v0.17.0: selector día/noche */
+.lighting-seg { position: absolute; top: 12px; right: 12px; z-index: 6; }
+.lighting-seg button { padding: 5px 12px; min-height: 30px; font-size: 13px; }

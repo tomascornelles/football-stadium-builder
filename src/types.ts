@@ -192,6 +192,7 @@ export type BuildingKind = 'house' | 'building' | 'tower';
 
 export const BUILDING_HEIGHT: Record<BuildingKind, number> = { house: 7, building: 24, tower: 50 };
 export type AppMode = 'stadium' | 'environment';
+export type Lighting = 'day' | 'night';
 
 /** Celda ocupada de la cuadrícula. Las celdas vacías no aparecen en el mapa. */
 export interface EnvCell {
@@ -231,6 +232,7 @@ export interface AppState {
   tool: EnvTool;
   buildingKind: BuildingKind;
   buildingColor: string;
+  lighting: Lighting;
 }
 
 export type StandPatch = Partial<Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing' | 'curved'>>;

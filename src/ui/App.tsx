@@ -128,6 +128,24 @@ export function App() {
         <p className="stage-hint">
           {inEnv ? 'Pinta sobre la cuadrícula. Arrastra para dibujar.' : 'Toca un módulo o una grada para seleccionarlo'}
         </p>
+        <div className="segmented lighting-seg" role="tablist" aria-label="Iluminación">
+          <button
+            role="tab"
+            aria-selected={state.lighting === 'day'}
+            className={state.lighting === 'day' ? 'active' : ''}
+            onClick={() => actions.setLighting('day')}
+          >
+            Día
+          </button>
+          <button
+            role="tab"
+            aria-selected={state.lighting === 'night'}
+            className={state.lighting === 'night' ? 'active' : ''}
+            onClick={() => actions.setLighting('night')}
+          >
+            Noche
+          </button>
+        </div>
         <div className="rotate-controls">
           <button className="round-btn" aria-label="Girar a la izquierda" onClick={() => actions.rotate(1)}>
             <RotateIcon dir="left" />
