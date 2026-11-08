@@ -91,7 +91,7 @@ export function StandEditor({ stand }: { stand: Stand }) {
       </div>
 
       <button className="btn full" onClick={() => actions.copyStandToAll(stand.id)}>
-        Copiar a todos los módulos
+        Copiar a todos los módulos (reemplaza el mismo nivel)
       </button>
     </section>
   );

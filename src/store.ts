@@ -174,14 +174,32 @@ export const actions = {
     });
   },
 
+  /** Copia una grada a todos los demás módulos, sustituyendo la grada del mismo nivel. */
   copyStandToAll(id: string) {
     commit((s) => {
       const src = s.stands.find((x) => x.id === id);
       if (!src) return {};
-      const copies: Stand[] = MODULE_IDS
-        .filter((m) => m !== src.moduleId)
-        .map((m) => ({ ...src, id: newId(), moduleId: m, order: nextOrder(s.stands, m) }));
-      return { stands: [...s.stands, ...copies] };
+      const srcList = s.stands
+        .filter((x) => x.moduleId === src.moduleId)
+        .sort((a, b) => a.order - b.order);
+      const level = srcList.findIndex((x) => x.id === src.id);
+
+      let stands = [...s.stands];
+      for (const m of MODULE_IDS) {
+        if (m === src.moduleId) continue;
+        const list = stands
+          .filter((x) => x.moduleId === m)
+          .sort((a, b) => a.order - b.order);
+        const target = list[level];
+        if (target) {
+          stands = stands.filter((x) => x.id !== target.id);
+          stands.push({ ...src, id: newId(), moduleId: m, order: target.order });
+        } else {
+          stands.push({ ...src, id: newId(), moduleId: m, order: nextOrder(stands, m) });
+        }
+      }
+      const selectedStandId = stands.some((x) => x.id === s.selectedStandId) ? s.selectedStandId : null;
+      return { stands, selectedStandId };
     });
   },
 
@@ -214,6 +232,16 @@ export const actions = {
       exteriors: project.exteriors,
       selectedStandId: null,
       selectedModule: 'west',
+    });
+  },
+
+  /** Aplica un estilo de referencia completo a todos los módulos. */
+  applyPreset(values: Partial<ModuleExterior>) {
+    commit(() => {
+      const clean = { ...DEFAULT_EXTERIOR, ...sanitize(values) };
+      const all = {} as Record<ModuleId, ModuleExterior>;
+      for (const id of MODULE_IDS) all[id] = { ...clean };
+      return { exteriors: all };
     });
   },
 

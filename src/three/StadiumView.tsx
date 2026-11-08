@@ -4,6 +4,7 @@ import { actions, getState, subscribe } from '../store';
 import { MODULE_IDS, ModuleId } from '../types';
 import {
   Anchors,
+  buildApron,
   buildJunctions,
   buildModuleStructures,
   buildStandGroup,
@@ -11,6 +12,7 @@ import {
   hitboxMesh,
   layoutBaseHeights,
   moduleExtent,
+  tallestStand,
 } from '../geometry/modules';
 import { buildPitch } from './pitch';
 
@@ -62,6 +64,8 @@ export function StadiumView() {
 
     const hitboxes = new Map<ModuleId, THREE.Mesh>();
     let hitboxKey = '';
+    let apron: THREE.Mesh | null = null;
+    let apronKey = '';
 
     const standGroup = new THREE.Group();
     const structureGroup = new THREE.Group();
@@ -85,6 +89,17 @@ export function StadiumView() {
       const anchors: Anchors = computeAnchors(st.stands);
       const anchorKey = JSON.stringify(anchors);
       const alive = new Set<string>();
+
+      // Césped entre gradas y campo
+      if (anchorKey !== apronKey) {
+        apronKey = anchorKey;
+        if (apron) {
+          world.remove(apron);
+          disposeGroup(apron);
+        }
+        apron = buildApron(anchors);
+        world.add(apron);
+      }
 
       // Módulos de selección: siguen la curva de cada módulo
       if (anchorKey !== hitboxKey) {
@@ -140,14 +155,15 @@ export function StadiumView() {
       for (const id of MODULE_IDS) {
         const ext = st.exteriors[id];
         const extent = moduleExtent(st.stands, id);
-        const key = JSON.stringify([ext, extent, anchorKey]);
+        const tallest = tallestStand(st.stands, id);
+        const key = JSON.stringify([ext, extent, anchorKey, tallest]);
         const current = structures.get(id);
         if (!current || current.key !== key) {
           if (current) {
             structureGroup.remove(current.group);
             disposeGroup(current.group);
           }
-          const group = buildModuleStructures(id, ext, extent, anchors);
+          const group = buildModuleStructures(id, ext, extent, anchors, tallest);
           structureGroup.add(group);
           structures.set(id, { group, key });
         }

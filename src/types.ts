@@ -38,6 +38,7 @@ export type WallType = 'none' | 'concrete' | 'glass' | 'brick' | 'windows' | 'pa
 export type RoofType = 'none' | 'canopy' | 'cantilever' | 'arch';
 export type FloodType = 'none' | 'mast' | 'bar';
 export type ScoreType = 'none' | 'marcador' | 'pantalla';
+export type DecoType = 'none' | 'pillars' | 'towers' | 'struts' | 'arches';
 
 export interface Option<T extends string> {
   value: T;
@@ -64,6 +65,14 @@ export const FLOOD_OPTIONS: Option<FloodType>[] = [
   { value: 'none', label: 'Sin focos' },
   { value: 'mast', label: 'Torres de focos' },
   { value: 'bar', label: 'Barra en cubierta' },
+];
+
+export const DECO_OPTIONS: Option<DecoType>[] = [
+  { value: 'none', label: 'Sin decoración' },
+  { value: 'pillars', label: 'Pilares exteriores' },
+  { value: 'towers', label: 'Torres' },
+  { value: 'struts', label: 'Soportes de cubierta' },
+  { value: 'arches', label: 'Arcos' },
 ];
 
 export const SCORE_OPTIONS: Option<ScoreType>[] = [
@@ -99,6 +108,11 @@ export interface ModuleExterior {
   score: ScoreType;
   scoreHeight: number;
   scoreWidth: number;
+
+  deco: DecoType;
+  decoCount: number;
+  decoHeight: number;
+  decoColor: string;
 }
 
 export const DEFAULT_EXTERIOR: ModuleExterior = {
@@ -124,6 +138,11 @@ export const DEFAULT_EXTERIOR: ModuleExterior = {
   score: 'none',
   scoreHeight: 12,
   scoreWidth: 8,
+
+  deco: 'none',
+  decoCount: 4,
+  decoHeight: 12,
+  decoColor: '#e5e7eb',
 };
 
 /** Rangos numéricos válidos de los exteriores. */
@@ -139,7 +158,40 @@ export const EXTERIOR_RANGES: Partial<Record<keyof ModuleExterior, [number, numb
   floodHeight: [8, 60],
   scoreHeight: [4, 40],
   scoreWidth: [2, 20],
+  decoCount: [1, 12],
+  decoHeight: [4, 60],
 };
+
+export interface StylePreset {
+  id: string;
+  name: string;
+  hint: string;
+  values: Partial<ModuleExterior>;
+}
+
+/** Estilos de referencia, inspirados en estadios conocidos. Son aproximaciones, no réplicas. */
+export const STYLE_PRESETS: StylePreset[] = [
+  {
+    id: 'bernabeu', name: 'Bernabéu', hint: 'Torres altas y cubierta en voladizo',
+    values: { wall: 'concrete', wallHeight: 22, wallColor: '#d1d5db', roof: 'cantilever', roofHeight: 5, roofOverhang: 6, roofSlope: 10, roofColumns: true, roofColor: '#e5e7eb', deco: 'towers', decoCount: 2, decoHeight: 42, decoColor: '#e5e7eb' },
+  },
+  {
+    id: 'mestalla', name: 'Mestalla', hint: 'Fachada de ladrillo con arcos y marquesina',
+    values: { wall: 'brick', wallHeight: 16, wallColor: '#a4553a', roof: 'canopy', roofHeight: 5, roofOverhang: 4, roofColumns: true, roofColor: '#d6d3cd', deco: 'arches', decoCount: 6, decoHeight: 10, decoColor: '#d6c9b5' },
+  },
+  {
+    id: 'san-siro', name: 'San Siro', hint: 'Anillo de arcos y cubierta curva',
+    values: { wall: 'concrete', wallHeight: 20, wallColor: '#cbd5e1', roof: 'arch', roofHeight: 4, roofOverhang: 5, roofSlope: 14, roofColumns: true, roofColor: '#e5e7eb', deco: 'arches', decoCount: 10, decoHeight: 12, decoColor: '#cbd5e1' },
+  },
+  {
+    id: 'old-trafford', name: 'Old Trafford', hint: 'Ladrillo con soportes y pilares',
+    values: { wall: 'brick', wallHeight: 20, wallColor: '#8b3a2b', roof: 'cantilever', roofHeight: 4, roofOverhang: 5, roofSlope: 12, roofColumns: true, roofColor: '#9ca3af', deco: 'struts', decoCount: 8, decoHeight: 26, decoColor: '#4b5563' },
+  },
+  {
+    id: 'allianz', name: 'Allianz Arena', hint: 'Fachada de cristal con pilares',
+    values: { wall: 'glass', wallHeight: 26, wallColor: '#e0f2fe', roof: 'canopy', roofHeight: 4, roofOverhang: 3, roofColumns: false, roofColor: '#f1f5f9', deco: 'pillars', decoCount: 12, decoHeight: 26, decoColor: '#f1f5f9' },
+  },
+];
 
 export interface AppState {
   stands: Stand[];

@@ -1,5 +1,9 @@
 import { actions } from '../store';
+import { confirmDialog } from './dialog';
 import {
+  DECO_OPTIONS,
+  STYLE_PRESETS,
+  StylePreset,
   FLOOD_OPTIONS,
   ModuleExterior,
   ModuleId,
@@ -46,6 +50,29 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
   return (
     <section className="editor">
       <h2 className="section-title">Exteriores y detalles</h2>
+
+      <details className="sub">
+        <summary>Estilos de referencia</summary>
+        <p className="hint-text">Aplica un conjunto completo de fachada, cubierta y decoración a todos los módulos.</p>
+        {STYLE_PRESETS.map((preset: StylePreset) => (
+          <button
+            key={preset.id}
+            className="btn full preset"
+            onClick={async () => {
+              const ok = await confirmDialog({
+                title: `Estilo ${preset.name}`,
+                message: `Se aplicará a todos los módulos, sustituyendo sus fachadas, cubiertas y decoración. ${preset.hint}.`,
+                confirmLabel: 'Aplicar',
+                danger: true,
+              });
+              if (ok) actions.applyPreset(preset.values);
+            }}
+          >
+            <span>{preset.name}</span>
+            <small>{preset.hint}</small>
+          </button>
+        ))}
+      </details>
 
       <details className="sub" open>
         <summary>Fachada</summary>
@@ -111,6 +138,20 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
               onChange={(v) => set({ scoreHeight: v })} />
             <Slider label="Ancho del panel" unit="m" value={ext.scoreWidth} min={2} max={20} step={1}
               onChange={(v) => set({ scoreWidth: v })} />
+          </>
+        )}
+      </details>
+
+      <details className="sub">
+        <summary>Decoración</summary>
+        <Select label="Tipo" value={ext.deco} options={DECO_OPTIONS} onChange={(v) => set({ deco: v })} />
+        {ext.deco !== 'none' && (
+          <>
+            <Slider label={ext.deco === 'towers' ? 'Número de torres' : 'Cantidad'} unit="" value={ext.decoCount}
+              min={1} max={12} step={1} onChange={(v) => set({ decoCount: v })} />
+            <Slider label={ext.deco === 'arches' ? 'Altura de arcos' : 'Altura'} unit="m" value={ext.decoHeight}
+              min={4} max={60} step={1} onChange={(v) => set({ decoHeight: v })} />
+            <ColorField label="Color" value={ext.decoColor} onChange={(v) => set({ decoColor: v })} />
           </>
         )}
       </details>

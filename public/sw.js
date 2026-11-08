@@ -1,4 +1,4 @@
-const CACHE = 'fsb-v0.9.0';
+const CACHE = 'fsb-v0.11.0';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -15,23 +15,20 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Cache-first para recursos propios: tras la primera carga funciona sin conexión.
+// Red primero: cada carga recibe la versión desplegada. La caché solo se usa sin conexión.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(req).then((hit) => {
-      if (hit) return hit;
-      return fetch(req)
-        .then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((cache) => cache.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => caches.match('./index.html'));
-    })
+    fetch(req)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(req, copy));
+        }
+        return res;
+      })
+      .catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html')))
   );
 });

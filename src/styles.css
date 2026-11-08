@@ -353,3 +353,7 @@ input.switch { width: 42px; height: 24px; accent-color: var(--accent); cursor: p
   .app.panel-open .stage-canvas { bottom: 38vh; }
   .app.panel-open .rotate-controls { bottom: calc(38vh + 12px); }
 }
+
+/* v0.10.0: estilos de referencia */
+.btn.preset { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.btn.preset small { color: var(--muted); font-size: 12px; font-weight: 400; }

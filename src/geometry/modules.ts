@@ -14,6 +14,8 @@ const COLUMN_STEP = 8;
 const CONCRETE = 0xb9c0c9;
 const STEEL = 0xd1d5db;
 const TOWER = 0x9ca3af;
+/** Color medio del césped, para la franja entre gradas y campo. */
+const APRON_COLOR = 0x3d9243;
 const RAIL_HEIGHT = 1.0;
 const RAIL_THICKNESS = 0.25;
 const HITBOX_DEPTH = 30;
@@ -460,6 +462,7 @@ export function buildModuleStructures(
   ext: ModuleExterior,
   extent: ModuleExtent | null,
   anchors: Anchors,
+  tallest: { stand: Stand; base: number } | null,
 ): THREE.Group {
   const frame = moduleFrame(moduleId, anchors);
   const group = new THREE.Group();
@@ -471,38 +474,30 @@ export function buildModuleStructures(
   }
 
   const deckY = ext.roof !== 'none' && extent ? ex.top + ext.roofHeight : ex.top + 4;
-  if (ext.roof !== 'none' && extent) {
-    const r1 = -1;
-    const r2 = ex.back + ext.roofOverhang;
-    const y = deckY;
+  if (ext.roof !== 'none' && extent && tallest) {
+    // La cubierta sigue la curva y la inclinación de la grada más alta
+    const tFrame = standFrame(tallest.stand, anchors);
+    const { run } = profileUY(tallest.stand, tallest.base);
+    const slope = tallest.stand.height / run;
+    const L = run + ext.roofOverhang;
     const T = ext.roofThickness;
-    const rise = (r2 - r1) * Math.tan(THREE.MathUtils.degToRad(ext.roofSlope));
-    let points: THREE.Vector2[];
-    let backBase: number;
-    if (ext.roof === 'canopy') {
-      points = rectPoints(r1, y, r2, y + T);
-      backBase = y;
-    } else if (ext.roof === 'cantilever') {
-      points = [v2(r1, y), v2(r2, y + rise), v2(r2, y + rise + T), v2(r1, y + T)];
-      backBase = y + rise;
-    } else {
-      const bottom: THREE.Vector2[] = [];
-      const top: THREE.Vector2[] = [];
-      for (let i = 0; i <= 12; i++) {
-        const t = i / 12;
-        const r = r1 + (r2 - r1) * t;
-        const yb = y + rise * Math.sin(t * Math.PI / 2);
-        bottom.push(v2(r, yb));
-        top.push(v2(r, yb + T));
-      }
-      points = [...bottom, ...top.reverse()];
-      backBase = y + rise;
+    const yb = (u: number) => tallest.base + ext.roofHeight + slope * u;
+    // La cubierta curva se abomba en el centro, según su parámetro de flecha
+    const bump = (u: number) => (ext.roof === 'arch' ? ext.roofSlope * 0.3 * Math.sin((Math.PI * u) / L) : 0);
+    const steps = ext.roof === 'arch' ? 12 : 1;
+    const bottom: THREE.Vector2[] = [];
+    const top: THREE.Vector2[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const u = (L * i) / steps;
+      const y = yb(u) + bump(u);
+      bottom.push(v2(u, y));
+      top.push(v2(u, y + T));
     }
     const roofMat = new THREE.MeshLambertMaterial({ color: ext.roofColor, flatShading: true, side: THREE.DoubleSide });
-    group.add(sweepMesh(frame, points, roofMat));
+    group.add(sweepMesh(tFrame, [...bottom, ...top.reverse()], roofMat));
     if (ext.roofColumns) {
-      addColumnsAlong(group, frame, [r2 - 0.8], backBase, concreteMaterial());
-      if (ext.roof !== 'canopy') addColumnsAlong(group, frame, [r1 + 0.8], y, concreteMaterial());
+      addColumnsAlong(group, tFrame, [L - 0.8], yb(L - 0.8), concreteMaterial());
+      if (ext.roof !== 'canopy') addColumnsAlong(group, tFrame, [0.8], yb(0.8), concreteMaterial());
     }
   }
 
@@ -558,7 +553,137 @@ export function buildModuleStructures(
       group.add(frameMesh);
     }
   }
+  if (ext.deco !== 'none') addDecoration(group, moduleId, ext, frame, ex, extent);
   return group;
+}
+
+/** Segmento recto entre dos puntos del mundo. */
+function addSegment(group: THREE.Group, a: THREE.Vector3, b: THREE.Vector3, thick: number, mat: THREE.Material) {
+  const dir = b.clone().sub(a);
+  const len = dir.length();
+  if (len < 1e-6) return;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(len, thick, thick), mat);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir.normalize());
+  group.add(m);
+}
+
+/**
+ * Decoración exterior: pilares, torres, soportes de cubierta y arcos.
+ * Las posiciones se reparten a lo largo del módulo.
+ */
+function addDecoration(
+  group: THREE.Group,
+  moduleId: ModuleId,
+  ext: ModuleExterior,
+  frame: Frame,
+  ex: ModuleExtent,
+  extent: ModuleExtent | null,
+) {
+  const mat = new THREE.MeshLambertMaterial({ color: ext.decoColor, flatShading: true });
+  const count = Math.max(1, ext.decoCount);
+  const ts = Array.from({ length: count }, (_, k) => (k + 0.5) / count);
+  const outerU = (ext.wall !== 'none' ? ex.back + ext.wallDistance + ext.wallThickness : ex.back) + 1;
+  const h = ext.decoHeight;
+  const roofY = ex.top + ext.roofHeight;
+
+  switch (ext.deco) {
+    case 'pillars': {
+      for (const t of ts) {
+        const p = surface(frame, t, outerU);
+        const col = new THREE.Mesh(new THREE.BoxGeometry(1.2, h, 1.2), mat);
+        col.position.set(p.x, h / 2, p.z);
+        col.rotation.y = faceRotation(frame.at(t).n);
+        group.add(col);
+      }
+      break;
+    }
+    case 'towers': {
+      const positions = isCorner(moduleId) ? [0.5] : ts;
+      for (const t of positions) {
+        const p = surface(frame, t, outerU + 2.5);
+        const shaft = new THREE.Mesh(new THREE.BoxGeometry(5, h, 5), mat);
+        shaft.position.set(p.x, h / 2, p.z);
+        shaft.rotation.y = faceRotation(frame.at(t).n);
+        group.add(shaft);
+        const crown = new THREE.Mesh(new THREE.BoxGeometry(6, 1.5, 6), mat);
+        crown.position.set(p.x, h + 0.75, p.z);
+        crown.rotation.y = faceRotation(frame.at(t).n);
+        group.add(crown);
+      }
+      break;
+    }
+    case 'struts': {
+      if (!extent || ext.roof === 'none') break;
+      const innerU = ex.back + ext.roofOverhang - 2;
+      for (const t of ts) {
+        const a = surface(frame, t, outerU);
+        a.y = 0;
+        const b = surface(frame, t, innerU);
+        b.y = roofY;
+        addSegment(group, a, b, 0.8, mat);
+      }
+      break;
+    }
+    case 'arches': {
+      // Arcos en el plano de la fachada, abiertos hacia el exterior
+      const R = h / 2;
+      const L = frame.length;
+      const steps = 14;
+      for (const t of ts) {
+        if (t - R / L < 0 || t + R / L > 1) continue;
+        const pts: THREE.Vector3[] = [];
+        for (let i = 0; i <= steps; i++) {
+          const th = (Math.PI * i) / steps;
+          const tt = t + (R * Math.cos(th)) / L;
+          pts.push(pointAt(frame, tt, outerU, R * Math.sin(th)));
+        }
+        for (let i = 0; i < steps; i++) addSegment(group, pts[i], pts[i + 1], 1.2, mat);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/** Punto del mundo a una distancia u y una altura y sobre la curva. */
+function pointAt(frame: Frame, t: number, u: number, y: number): THREE.Vector3 {
+  const p = surface(frame, t, u);
+  p.y = y;
+  return p;
+}
+
+/** Césped entre las gradas y el campo: polígono formado por las curvas frontales de los módulos. */
+export function buildApron(anchors: Anchors): THREE.Mesh {
+  const pts: THREE.Vector2[] = [];
+  for (const id of RING) {
+    const f = moduleFrame(id, anchors);
+    for (let i = 0; i < f.segments; i++) pts.push(f.at(i / f.segments).p.clone());
+  }
+  const poly = dedupe(pts);
+  const tris = THREE.ShapeUtils.triangulateShape(poly, []);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(poly.flatMap((p) => [p.x, 0, p.y]), 3));
+  geo.setIndex(tris.flat());
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshLambertMaterial({ color: APRON_COLOR, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = -0.02;
+  return mesh;
+}
+
+/** Grada más alta de un módulo, con su altura base. */
+export function tallestStand(stands: Stand[], moduleId: ModuleId): { stand: Stand; base: number } | null {
+  const bases = layoutBaseHeights(stands);
+  let best: { stand: Stand; base: number; top: number } | null = null;
+  for (const st of stands) {
+    if (st.moduleId !== moduleId) continue;
+    const base = bases.get(st.id) ?? 0;
+    const top = base + st.height;
+    if (!best || top > best.top) best = { stand: st, base, top };
+  }
+  return best ? { stand: best.stand, base: best.base } : null;
 }
 
 /** Extremos de la fachada de un módulo en el mundo. */
