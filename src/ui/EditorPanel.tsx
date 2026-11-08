@@ -30,6 +30,8 @@ export function EditorPanel() {
     .sort((a, b) => a.order - b.order);
   const selected = state.stands.find((s) => s.id === state.selectedStandId) ?? null;
   const countOf = (id: ModuleId) => state.stands.filter((s) => s.moduleId === id).length;
+  // Nivel real (1 = la más baja) y orden de lista: las más altas arriba
+  const listed = stands.map((s, i) => ({ s, level: i + 1 })).reverse();
 
   return (
     <aside className={`panel glass ${open ? 'open' : ''}`}>
@@ -75,14 +77,14 @@ export function EditorPanel() {
             <p className="hint-text">Este módulo no tiene gradas todavía.</p>
           ) : (
             <ul className="stand-list">
-              {stands.map((s, i) => (
+              {listed.map(({ s, level }) => (
                 <li key={s.id}>
                   <button
                     className={`stand-item ${state.selectedStandId === s.id ? 'active' : ''}`}
                     onClick={() => actions.selectStand(s.id)}
                   >
                     <span className="swatch" style={{ background: s.color }} />
-                    <span>Nivel {i + 1}</span>
+                    <span>Nivel {level}</span>
                     <span className="meta">{s.height} m · {s.tilt}°</span>
                   </button>
                 </li>

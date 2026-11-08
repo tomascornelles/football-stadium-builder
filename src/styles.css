@@ -282,3 +282,10 @@ input.switch { width: 42px; height: 24px; accent-color: var(--accent); cursor: p
     background: rgba(255, 255, 255, 0.12); border: 1px solid var(--glass-border); cursor: pointer;
   }
 }
+
+/* Ajustes v0.5.4 */
+.row-between { margin-bottom: 6px; padding: 0; }
+.row-between .btn { margin-right: 0; }
+@media (max-width: 760px) {
+  .panel { max-height: 38vh; }
+}
