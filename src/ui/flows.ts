@@ -96,9 +96,9 @@ export async function importFlow(file: File) {
 
 export async function resetFlow() {
   const ok = await confirmDialog({
-    title: 'Reiniciar estadio',
-    message: 'Se borrarán las gradas y exteriores de la pantalla. Los estadios guardados no se verán afectados.',
-    confirmLabel: 'Reiniciar',
+    title: 'Nuevo estadio',
+    message: 'Se borrarán las gradas, los exteriores y el entorno de la pantalla. Los estadios guardados no se verán afectados.',
+    confirmLabel: 'Nuevo',
     danger: true,
   });
   if (ok) actions.reset();

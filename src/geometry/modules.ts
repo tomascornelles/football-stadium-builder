@@ -689,8 +689,23 @@ function addRoofDecoration(
   const H = ext.roofDecoHeight;
 
   switch (ext.roofDeco) {
-    case 'ridge': {
-      group.add(sweepMesh(frame, rectPoints(u0, top, L, top + 1.2), mat));
+    case 'lattice': {
+      // Celosía: dos cordones longitudinales con postes, diagonales y cruces transversales
+      const panels = count;
+      for (const u of [u0, L]) {
+        for (let k = 0; k < panels; k++) {
+          const t0 = k / panels;
+          const t1 = (k + 1) / panels;
+          addSegment(group, pointAt(frame, t0, u, top + H), pointAt(frame, t1, u, top + H), 0.6, mat);
+          addSegment(group, pointAt(frame, t0, u, top), pointAt(frame, t0, u, top + H), 0.5, mat);
+          addSegment(group, pointAt(frame, t0, u, top), pointAt(frame, t1, u, top + H), 0.4, mat);
+        }
+        addSegment(group, pointAt(frame, 1, u, top), pointAt(frame, 1, u, top + H), 0.5, mat);
+      }
+      for (let k = 0; k <= panels; k++) {
+        const t = k / panels;
+        addSegment(group, pointAt(frame, t, u0, top + H), pointAt(frame, t, L, top + H), 0.4, mat);
+      }
       break;
     }
     case 'trusses': {

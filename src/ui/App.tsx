@@ -103,7 +103,7 @@ export function App() {
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => exportFlow())}>Exportar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => pngFlow())}>Descargar PNG</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => fileRef.current?.click())}>Importar</button>
-                  <button className="menu-item danger" role="menuitem" onClick={fromMenu(() => resetFlow())}>Reiniciar</button>
+                  <button className="menu-item danger" role="menuitem" onClick={fromMenu(() => resetFlow())}>Nuevo</button>
                 </div>
               </>,
               document.body,
@@ -125,9 +125,7 @@ export function App() {
 
       <main className="stage glass">
         <StadiumView />
-        <p className="stage-hint">
-          {inEnv ? 'Pinta sobre la cuadrícula. Arrastra para dibujar.' : 'Toca un módulo o una grada para seleccionarlo'}
-        </p>
+        {inEnv && <p className="stage-hint">Pinta sobre la cuadrícula. Arrastra para dibujar.</p>}
         <div className="segmented lighting-seg" role="tablist" aria-label="Iluminación">
           <button
             role="tab"

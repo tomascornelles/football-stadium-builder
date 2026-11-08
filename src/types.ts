@@ -56,13 +56,13 @@ export type RoofType = 'none' | 'canopy' | 'cantilever' | 'arch';
 export type FloodType = 'none' | 'mast' | 'bar';
 export type ScoreType = 'none' | 'marcador' | 'pantalla';
 export type DecoType = 'none' | 'pillars' | 'towers' | 'struts' | 'arches';
-export type RoofDecoType = 'none' | 'trusses' | 'masts' | 'ridge';
+export type RoofDecoType = 'none' | 'trusses' | 'masts' | 'lattice';
 
 export const ROOF_DECO_OPTIONS: Option<RoofDecoType>[] = [
   { value: 'none', label: 'Sin decoración' },
   { value: 'trusses', label: 'Armaduras' },
   { value: 'masts', label: 'Mástiles con tirantes' },
-  { value: 'ridge', label: 'Viga de coronación' },
+  { value: 'lattice', label: 'Celosía' },
 ];
 
 export interface Option<T extends string> {
@@ -164,7 +164,7 @@ export const DEFAULT_EXTERIOR: ModuleExterior = {
   roofInset: 0,
   roofThickness: 1,
   roofSlope: 12,
-  roofColumns: true,
+  roofColumns: false,
   roofColor: '#e5e7eb',
 
   flood: 'none',

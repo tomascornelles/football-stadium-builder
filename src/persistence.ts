@@ -76,7 +76,7 @@ function toStand(raw: any): Stand {
     tilt: clamp(raw.tilt, LIMITS.tilt.min, LIMITS.tilt.max),
     offset: clamp(raw.offset, LIMITS.offset.min, LIMITS.offset.max),
     color: raw.color,
-    columns: raw.columns !== false,
+    columns: raw.columns === true,
     railing: raw.railing === true,
     curve: migrateCurve(raw),
   };
@@ -107,7 +107,7 @@ function toExterior(raw: any): ModuleExterior {
     wallColor: isColor(ext.wallColor) ? ext.wallColor : DEFAULT_EXTERIOR.wallColor,
     roofColor: isColor(ext.roofColor) ? ext.roofColor : DEFAULT_EXTERIOR.roofColor,
     floodColor: isColor(ext.floodColor) ? ext.floodColor : DEFAULT_EXTERIOR.floodColor,
-    roofColumns: ext.roofColumns !== false,
+    roofColumns: ext.roofColumns === true,
   };
 }
 

@@ -70,7 +70,7 @@ function load(): AppState {
     for (const id of MODULE_IDS) exteriors[id] = { ...DEFAULT_EXTERIOR, ...(saved[id] ?? {}) };
     const stands = (parsed.stands ?? [])
       .filter(isValidStand)
-      .map((s) => ({ ...s, columns: s.columns !== false, railing: s.railing === true, curve: migrateCurve(s) }));
+      .map((s) => ({ ...s, columns: s.columns === true, railing: s.railing === true, curve: migrateCurve(s) }));
     return {
       stands,
       exteriors,
@@ -153,7 +153,7 @@ export const actions = {
         tilt: 25,
         offset: 0,
         color: PALETTE[s.stands.length % PALETTE.length],
-        columns: true,
+        columns: false,
         railing: false,
         curve: 'straight',
       };
@@ -324,6 +324,7 @@ export const actions = {
     commit({
       stands: [],
       exteriors: defaultExteriors(),
+      environment: {},
       selectedStandId: null,
       selectedModule: 'west',
       rotationSteps: 0,
