@@ -69,11 +69,15 @@ export function StadiumView() {
     stadiumLight.position.set(0, 70, 0);
     scene.add(ambient, sun, stadiumLight);
 
-    // Focos del estadio: luces puntuales de noche (limitadas a 8 por rendimiento)
+    // Focos del estadio: proyectores de noche que apuntan al centro del campo (limitados a 8)
     const FLOOD_LIGHTS = 8;
-    const floodLights: THREE.PointLight[] = [];
+    const floodTarget = new THREE.Object3D();
+    floodTarget.position.set(0, 0, 0);
+    scene.add(floodTarget);
+    const floodLights: THREE.SpotLight[] = [];
     for (let k = 0; k < FLOOD_LIGHTS; k++) {
-      const l = new THREE.PointLight(0xfff1c1, 0, 140, 2);
+      const l = new THREE.SpotLight(0xfff1c1, 0, 170, 0.9, 0.5, 2);
+      l.target = floodTarget;
       scene.add(l);
       floodLights.push(l);
     }
@@ -105,7 +109,7 @@ export function StadiumView() {
           h.getWorldPosition(headPos);
           l.position.copy(headPos);
           l.color.set(h.userData.lightColor as string);
-          l.intensity = 1200;
+          l.intensity = 1800;
         } else {
           l.intensity = 0;
         }
