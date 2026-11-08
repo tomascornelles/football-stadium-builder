@@ -4,18 +4,6 @@ import { MODULE_NAMES, ModuleId } from '../types';
 import { StandEditor } from './StandEditor';
 import { ExteriorEditor } from './ExteriorEditor';
 
-const SHORT_NAMES: Record<ModuleId, string> = {
-  nw: 'Esq. NO', north: 'Lat. N', ne: 'Esq. NE',
-  west: 'Fondo O', east: 'Fondo E',
-  sw: 'Esq. SO', south: 'Lat. S', se: 'Esq. SE',
-};
-
-const GRID: (ModuleId | 'field')[][] = [
-  ['nw', 'north', 'ne'],
-  ['west', 'field', 'east'],
-  ['sw', 'south', 'se'],
-];
-
 interface EditorPanelProps {
   open: boolean;
   setOpen: (v: boolean) => void;
@@ -28,7 +16,6 @@ export function EditorPanel({ open, setOpen }: EditorPanelProps) {
     .filter((s) => s.moduleId === state.selectedModule)
     .sort((a, b) => a.order - b.order);
   const selected = state.stands.find((s) => s.id === state.selectedStandId) ?? null;
-  const countOf = (id: ModuleId) => state.stands.filter((s) => s.moduleId === id).length;
   // Nivel real (1 = la más baja) y orden de lista: las más altas arriba
   const listed = stands.map((s, i) => ({ s, level: i + 1 })).reverse();
 
@@ -42,28 +29,9 @@ export function EditorPanel({ open, setOpen }: EditorPanelProps) {
       </div>
 
       <div className="panel-body">
-        <section>
-          <h2 className="section-title">Módulos</h2>
-          <div className="module-map">
-            {GRID.flat().map((cell, i) =>
-              cell === 'field' ? (
-                <div key={i} className="module-cell field" aria-hidden>⚽</div>
-              ) : (
-                <button
-                  key={cell}
-                  className={`module-cell ${state.selectedModule === cell ? 'active' : ''}`}
-                  onClick={() => actions.selectModule(cell)}
-                >
-                  <span>{SHORT_NAMES[cell]}</span>
-                  <span className="count">{countOf(cell)} gradas</span>
-                </button>
-              ),
-            )}
-          </div>
-          <p className="current-module">
-            Seleccionado: <strong>{MODULE_NAMES[state.selectedModule]}</strong>
-          </p>
-        </section>
+        <p className="current-module">
+          Seleccionado: <strong>{MODULE_NAMES[state.selectedModule]}</strong>
+        </p>
 
         <section>
           <div className="row-between">
