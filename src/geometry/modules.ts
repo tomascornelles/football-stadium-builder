@@ -7,8 +7,6 @@ const HALF_W = PITCH_WIDTH / 2; // 34 m
 const ARC_SEGMENTS = 32;
 /** Flecha de una grada curva (m, hacia fuera). */
 const CURVE_BULGE = 14;
-/** Flecha de una esquina en cuarto de circunferencia respecto a su cuerda. */
-const CORNER_FACTOR = 0.2071;
 /** Grada elevada. */
 const SLAB = 1.0;
 const COLUMN = 0.9;
@@ -29,6 +27,9 @@ export const isCorner = (id: ModuleId) => CORNERS.includes(id);
 /** Curva sobre la que se barre un perfil. p = punto (x, z); n = normal hacia fuera. */
 export interface Frame {
   at(t: number): { p: THREE.Vector2; n: THREE.Vector2 };
+  /** Tangente unitaria en el sentido del recorrido del anillo. */
+  tan(t: number): THREE.Vector2;
+  curved: boolean;
   length: number;
   segments: number;
 }
@@ -44,10 +45,13 @@ function buildFrame(a: THREE.Vector2, b: THREE.Vector2, sag: number): Frame {
   const outward = perp.dot(mid) >= 0 ? perp : perp.clone().negate();
 
   if (sag < 1e-6 || len < 1e-6) {
+    const dir = len > 1e-9 ? d.clone().normalize() : v2(1, 0);
     return {
       segments: 1,
       length: len,
+      curved: false,
       at: (t) => ({ p: a.clone().lerp(b, t), n: outward.clone() }),
+      tan: () => dir.clone(),
     };
   }
 
@@ -59,16 +63,61 @@ function buildFrame(a: THREE.Vector2, b: THREE.Vector2, sag: number): Frame {
   let delta = th1 - th0;
   while (delta > Math.PI) delta -= 2 * Math.PI;
   while (delta < -Math.PI) delta += 2 * Math.PI;
+  const dirSign = Math.sign(delta) || 1;
 
   return {
     segments: ARC_SEGMENTS,
     length: Math.abs(delta) * R,
+    curved: true,
     at: (t) => {
       const th = th0 + delta * t;
       const c = Math.cos(th);
       const s = Math.sin(th);
       return { p: v2(center.x + R * c, center.y + R * s), n: v2(c, s) };
     },
+    tan: (t) => {
+      const th = th0 + delta * t;
+      return v2(-Math.sin(th), Math.cos(th)).multiplyScalar(dirSign);
+    },
+  };
+}
+
+/** Curva de Bézier cúbica. Se usa para las esquinas, que empiezan y acaban con la tangente de sus vecinas. */
+function bezierFrame(P0: THREE.Vector2, P1: THREE.Vector2, P2: THREE.Vector2, P3: THREE.Vector2, curved: boolean): Frame {
+  const point = (t: number) => {
+    const u = 1 - t;
+    return P0.clone().multiplyScalar(u * u * u)
+      .addScaledVector(P1, 3 * u * u * t)
+      .addScaledVector(P2, 3 * u * t * t)
+      .addScaledVector(P3, t * t * t);
+  };
+  const deriv = (t: number) => {
+    const u = 1 - t;
+    return P1.clone().sub(P0).multiplyScalar(3 * u * u)
+      .addScaledVector(P2.clone().sub(P1), 6 * u * t)
+      .addScaledVector(P3.clone().sub(P2), 3 * t * t);
+  };
+  const mid = point(0.5);
+  const dm = deriv(0.5);
+  const sign = v2(-dm.y, dm.x).dot(mid) >= 0 ? 1 : -1;
+
+  let length = 0;
+  let prev = P0;
+  for (let i = 1; i <= ARC_SEGMENTS; i++) {
+    const q = point(i / ARC_SEGMENTS);
+    length += prev.distanceTo(q);
+    prev = q;
+  }
+
+  return {
+    segments: ARC_SEGMENTS,
+    length,
+    curved,
+    at: (t) => {
+      const d = deriv(t).normalize();
+      return { p: point(t), n: v2(-d.y, d.x).multiplyScalar(sign) };
+    },
+    tan: (t) => deriv(t).normalize(),
   };
 }
 
@@ -81,6 +130,32 @@ function straightEnds(id: ModuleId, v: number): [THREE.Vector2, THREE.Vector2] {
     case 'west': return [v2(-(HALF_L + v), HALF_W), v2(-(HALF_L + v), -HALF_W)];
     default: return [v2(0, 0), v2(0, 0)];
   }
+}
+
+/**
+ * Plantillas de esquina según la curvatura de los vecinos:
+ * - recta: ambos vecinos rectos, cuarto de circunferencia.
+ * - curva: ambos vecinos curvos.
+ * - mixta: un vecino recto y otro curvo.
+ */
+export type CornerTemplate = 'straight' | 'curved' | 'mixed';
+
+const CORNER_HANDLE: Record<CornerTemplate, number> = {
+  straight: 0.39,
+  curved: 0.44,
+  mixed: 0.41,
+};
+
+export const CORNER_TEMPLATE_LABEL: Record<CornerTemplate, string> = {
+  straight: 'recta',
+  curved: 'curva',
+  mixed: 'mixta',
+};
+
+export function cornerTemplate(prevCurved: boolean, nextCurved: boolean): CornerTemplate {
+  if (prevCurved && nextCurved) return 'curved';
+  if (!prevCurved && !nextCurved) return 'straight';
+  return 'mixed';
 }
 
 /* ---------- Anclas: lo que cada módulo ofrece a sus vecinos ---------- */
@@ -109,22 +184,38 @@ export function computeAnchors(stands: Stand[]): Anchors {
   return out;
 }
 
-/** Extremos del módulo. En las esquinas, son los extremos de los vecinos. */
-function endpoints(id: ModuleId, anchors: Anchors): [THREE.Vector2, THREE.Vector2] {
-  if (!isCorner(id)) return straightEnds(id, anchors[id].v);
+/** Vecinos de un módulo en el anillo. */
+function neighbors(id: ModuleId): [ModuleId, ModuleId] {
   const i = RING.indexOf(id);
-  const prev = RING[(i + RING.length - 1) % RING.length];
-  const next = RING[(i + 1) % RING.length];
-  return [straightEnds(prev, anchors[prev].v)[1], straightEnds(next, anchors[next].v)[0]];
+  return [RING[(i + RING.length - 1) % RING.length], RING[(i + 1) % RING.length]];
+}
+
+/** Esquina: une el extremo del vecino anterior con el inicio del siguiente, con sus tangentes. */
+function cornerFrame(id: ModuleId, anchors: Anchors): Frame {
+  const [prev, next] = neighbors(id);
+  const pf = moduleFrame(prev, anchors);
+  const nf = moduleFrame(next, anchors);
+  const A = pf.at(1).p;
+  const tA = pf.tan(1);
+  const B = nf.at(0).p;
+  const tB = nf.tan(0);
+  const k = CORNER_HANDLE[cornerTemplate(pf.curved, nf.curved)] * A.distanceTo(B);
+  const P1 = A.clone().addScaledVector(tA, k);
+  const P2 = B.clone().addScaledVector(tB, -k);
+  return bezierFrame(A, P1, P2, B, true);
 }
 
 /** Curva de referencia de un módulo (la de su ancla). */
 export function moduleFrame(id: ModuleId, anchors: Anchors): Frame {
-  const [a, b] = endpoints(id, anchors);
-  const sag = isCorner(id)
-    ? CORNER_FACTOR * a.distanceTo(b)
-    : anchors[id].curved ? CURVE_BULGE : 0;
-  return buildFrame(a, b, sag);
+  if (isCorner(id)) return cornerFrame(id, anchors);
+  const [a, b] = straightEnds(id, anchors[id].v);
+  return buildFrame(a, b, anchors[id].curved ? CURVE_BULGE : 0);
+}
+
+/** Plantilla que usa una esquina según sus vecinos. */
+export function cornerTemplateOf(id: ModuleId, anchors: Anchors): CornerTemplate {
+  const [prev, next] = neighbors(id);
+  return cornerTemplate(anchors[prev].curved, anchors[next].curved);
 }
 
 /** Curva de una grada concreta. Las esquinas siguen la del módulo. */

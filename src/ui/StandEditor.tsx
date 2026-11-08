@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { actions } from '../store';
+import { actions, getState } from '../store';
+import { CORNER_TEMPLATE_LABEL, computeAnchors, cornerTemplateOf } from '../geometry/modules';
 import { LIMITS } from '../config';
 import { MODULE_IDS, MODULE_NAMES, ModuleId, Stand } from '../types';
 import { Slider } from './Slider';
@@ -27,7 +28,10 @@ export function StandEditor({ stand }: { stand: Stand }) {
       />
 
       {corner ? (
-        <p className="hint-text">Las esquinas se ajustan a los extremos de las gradas vecinas.</p>
+        <p className="hint-text">
+          Esquina con plantilla {CORNER_TEMPLATE_LABEL[cornerTemplateOf(stand.moduleId, computeAnchors(getState().stands))]}:
+          se ajusta a las gradas vecinas.
+        </p>
       ) : (
         <>
           <Slider
