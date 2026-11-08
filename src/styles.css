@@ -265,3 +265,20 @@ input.switch { width: 42px; height: 24px; accent-color: var(--accent); cursor: p
 .saved-item small { color: var(--muted); font-size: 12px; }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.96) translateY(8px); } }
+
+/* Correcciones v0.5.3 */
+.panel-head { display: none; }
+.panel-close { display: none; }
+.panel-body { padding-right: 8px; }
+.row-between { padding: 0 4px; }
+.row-between .btn { margin-right: 4px; }
+@media (max-width: 760px) {
+  .panel-head { display: flex; align-items: center; gap: 6px; flex: none; }
+  .panel-head .panel-handle { flex: 1; display: flex; }
+  .panel-close {
+    display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; flex: none; border-radius: 12px;
+    font: inherit; font-size: 16px; color: var(--text);
+    background: rgba(255, 255, 255, 0.12); border: 1px solid var(--glass-border); cursor: pointer;
+  }
+}

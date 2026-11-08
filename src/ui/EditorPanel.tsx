@@ -33,9 +33,12 @@ export function EditorPanel() {
 
   return (
     <aside className={`panel glass ${open ? 'open' : ''}`}>
-      <button className="panel-handle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <span className="grip" /> Editor · {MODULE_NAMES[state.selectedModule]}
-      </button>
+      <div className="panel-head">
+        <button className="panel-handle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+          <span className="grip" /> Editor · {MODULE_NAMES[state.selectedModule]}
+        </button>
+        <button className="panel-close" onClick={() => setOpen(false)} aria-label="Cerrar editor">✕</button>
+      </div>
 
       <div className="panel-body">
         <section>
