@@ -107,7 +107,7 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
         <Select label="Tipo" value={ext.score} options={SCORE_OPTIONS} onChange={(v) => set({ score: v })} />
         {ext.score !== 'none' && (
           <>
-            <Slider label="Altura del poste" unit="m" value={ext.scoreHeight} min={4} max={40} step={1}
+            <Slider label="Altura sobre la grada" unit="m" value={ext.scoreHeight} min={4} max={40} step={1}
               onChange={(v) => set({ scoreHeight: v })} />
             <Slider label="Ancho del panel" unit="m" value={ext.scoreWidth} min={2} max={20} step={1}
               onChange={(v) => set({ scoreWidth: v })} />

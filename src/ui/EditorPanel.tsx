@@ -1,6 +1,6 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 import { actions, getState, subscribe } from '../store';
-import { MODULE_IDS, MODULE_NAMES, ModuleId } from '../types';
+import { MODULE_NAMES, ModuleId } from '../types';
 import { StandEditor } from './StandEditor';
 import { ExteriorEditor } from './ExteriorEditor';
 
@@ -16,14 +16,13 @@ const GRID: (ModuleId | 'field')[][] = [
   ['sw', 'south', 'se'],
 ];
 
-export function EditorPanel() {
-  const state = useSyncExternalStore(subscribe, getState);
-  const [open, setOpen] = useState(false);
+interface EditorPanelProps {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}
 
-  // En móvil, abrir el editor automáticamente al seleccionar una grada
-  useEffect(() => {
-    if (state.selectedStandId) setOpen(true);
-  }, [state.selectedStandId]);
+export function EditorPanel({ open, setOpen }: EditorPanelProps) {
+  const state = useSyncExternalStore(subscribe, getState);
 
   const stands = state.stands
     .filter((s) => s.moduleId === state.selectedModule)
@@ -36,7 +35,7 @@ export function EditorPanel() {
   return (
     <aside className={`panel glass ${open ? 'open' : ''}`}>
       <div className="panel-head">
-        <button className="panel-handle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <button className="panel-handle" onClick={() => setOpen(!open)} aria-expanded={open}>
           <span className="grip" /> Editor · {MODULE_NAMES[state.selectedModule]}
         </button>
         <button className="panel-close" onClick={() => setOpen(false)} aria-label="Cerrar editor">✕</button>

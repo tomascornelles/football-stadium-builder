@@ -388,8 +388,9 @@ export function buildModuleStructures(
     const h = ext.floodHeight;
     const steel = new THREE.MeshLambertMaterial({ color: TOWER, flatShading: true });
     const lightMat = new THREE.MeshBasicMaterial({ color: ext.floodColor });
-    for (let k = 0; k < ext.floodCount; k++) {
-      const { position, rotationY } = placeAt(frame, (k + 0.5) / ext.floodCount, towerR);
+    const towers = frame.kind === 'corner' ? 1 : ext.floodCount;
+    for (let k = 0; k < towers; k++) {
+      const { position, rotationY } = placeAt(frame, (k + 0.5) / towers, towerR);
       const tower = new THREE.Mesh(new THREE.BoxGeometry(0.8, h, 0.8), steel);
       tower.position.set(position.x, h / 2, position.z);
       group.add(tower);
@@ -404,18 +405,18 @@ export function buildModuleStructures(
     group.add(sweepObject(frame, rectPoints(r - 0.4, y0, r + 0.4, y0 + 1.2), new THREE.MeshBasicMaterial({ color: ext.floodColor })));
   }
 
-  // Marcador o pantalla
+  // Marcador o pantalla sobre la grada: el panel queda por encima de la fila más alta
   if (ext.score !== 'none') {
-    const r = Math.max(1, ex.front - 3);
-    const h = ext.scoreHeight;
+    const r = Math.max(1, ex.back - 1.5);
     const w = ext.scoreWidth;
+    const boardY = ex.top + ext.scoreHeight;
+    const boardBottom = Math.max(0.5, boardY - (w * 0.5) / 2);
     const { position: p, rotationY } = placeAt(frame, 0.5, r);
     const steel = new THREE.MeshLambertMaterial({ color: TOWER, flatShading: true });
-    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.6, h, 0.6), steel);
-    pole.position.set(p.x, h / 2, p.z);
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.6, boardBottom, 0.6), steel);
+    pole.position.set(p.x, boardBottom / 2, p.z);
     group.add(pole);
 
-    const boardY = h + (w * 0.5) / 2;
     const boardMat = new THREE.MeshBasicMaterial({ color: ext.score === 'marcador' ? 0x0f172a : 0x0ea5e9 });
     const board = new THREE.Mesh(new THREE.BoxGeometry(0.8, w * 0.5, w), boardMat);
     board.position.set(p.x, boardY, p.z);

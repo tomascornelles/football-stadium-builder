@@ -289,3 +289,59 @@ input.switch { width: 42px; height: 24px; accent-color: var(--accent); cursor: p
 @media (max-width: 760px) {
   .panel { max-height: 38vh; }
 }
+
+/* v0.6.0: cabecera, menú, rotación, panel y scroll */
+.btn.icon { font-size: 18px; line-height: 1; padding: 8px 12px; }
+.menu-wrap { position: relative; }
+.menu-backdrop { position: fixed; inset: 0; z-index: 40; }
+.menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 50;
+  min-width: 180px; padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  animation: pop-in 0.15s ease;
+}
+.menu-item {
+  font: inherit; font-size: 14px; color: var(--text); text-align: left;
+  background: none; border: none; border-radius: 10px; padding: 10px 12px; min-height: 40px; cursor: pointer;
+}
+.menu-item:hover, .menu-item:active { background: rgba(255, 255, 255, 0.14); }
+
+.rotate-controls {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  display: flex; gap: 12px; z-index: 5;
+  transition: bottom 0.3s ease;
+}
+.round-btn {
+  width: 48px; height: 48px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--glass); border: 1px solid var(--glass-border); color: var(--text);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform 0.1s, background 0.2s;
+}
+.round-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.round-btn:active { transform: scale(0.93); }
+.round-btn svg {
+  width: 24px; height: 24px; fill: none; stroke: currentColor;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+.stage-hint { top: 12px; bottom: auto; transform: translateX(-50%); }
+
+.field-row.inline select { min-width: 170px; max-width: 65%; }
+
+/* Scroll acorde al resto de la interfaz */
+* { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.28) transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22); border-radius: 999px;
+  border: 1px solid transparent; background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); background-clip: padding-box; }
+
+@media (max-width: 760px) {
+  /* Con el panel abierto, el estadio se centra en el espacio libre encima */
+  .app.panel-open .stage-canvas { bottom: 38vh; transition: bottom 0.3s ease; }
+  .app.panel-open .rotate-controls { bottom: calc(38vh + 12px); }
+  .stage-canvas { transition: bottom 0.3s ease; }
+}

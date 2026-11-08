@@ -215,8 +215,8 @@ export const actions = {
     });
   },
 
-  rotate() {
-    commit((s) => ({ rotationSteps: s.rotationSteps + 1 }));
+  rotate(delta: number = 1) {
+    commit((s) => ({ rotationSteps: s.rotationSteps + delta }));
   },
 
   reset() {

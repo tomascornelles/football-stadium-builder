@@ -1,4 +1,4 @@
-import { useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { StadiumView } from '../three/StadiumView';
 import { actions, getState, subscribe } from '../store';
 import { APP_VERSION } from '../config';
@@ -6,13 +6,39 @@ import { EditorPanel } from './EditorPanel';
 import { DialogHost } from './DialogHost';
 import { exportFlow, importFlow, libraryFlow, resetFlow, saveFlow } from './flows';
 
+function RotateIcon({ dir }: { dir: 'left' | 'right' }) {
+  // Flechas curvas de trazo
+  return dir === 'left' ? (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 12a9 9 0 1 0 2.64-6.36L3 8" />
+      <polyline points="3 3 3 8 8 8" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
+      <polyline points="21 3 21 8 16 8" />
+    </svg>
+  );
+}
+
 export function App() {
   const state = useSyncExternalStore(subscribe, getState);
   const fileRef = useRef<HTMLInputElement>(null);
-  const view = (((state.rotationSteps % 4) + 4) % 4) * 90;
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Al seleccionar una grada se abre el editor
+  useEffect(() => {
+    if (state.selectedStandId) setPanelOpen(true);
+  }, [state.selectedStandId]);
+
+  const fromMenu = (fn: () => void) => () => {
+    setMenuOpen(false);
+    fn();
+  };
 
   return (
-    <div className="app">
+    <div className={`app ${panelOpen ? 'panel-open' : ''}`}>
       <header className="toolbar glass">
         <div className="brand">
           <span className="logo">⚽</span>
@@ -22,10 +48,28 @@ export function App() {
           </div>
         </div>
         <div className="tools">
-          <button className="btn" onClick={() => saveFlow()} title="Guardar en este dispositivo">Guardar</button>
-          <button className="btn" onClick={() => libraryFlow()} title="Abrir estadio guardado">Cargar</button>
-          <button className="btn" onClick={() => exportFlow()} title="Descargar archivo .json">Exportar</button>
-          <button className="btn" onClick={() => fileRef.current?.click()} title="Importar archivo .json">Importar</button>
+          <button className="btn ghost" onClick={() => resetFlow()}>Reiniciar</button>
+          <div className="menu-wrap">
+            <button
+              className="btn icon"
+              aria-label="Menú"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              ☰
+            </button>
+            {menuOpen && (
+              <>
+                <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
+                <div className="menu glass" role="menu">
+                  <button className="menu-item" role="menuitem" onClick={fromMenu(() => saveFlow())}>Guardar</button>
+                  <button className="menu-item" role="menuitem" onClick={fromMenu(() => libraryFlow())}>Cargar</button>
+                  <button className="menu-item" role="menuitem" onClick={fromMenu(() => exportFlow())}>Exportar</button>
+                  <button className="menu-item" role="menuitem" onClick={fromMenu(() => fileRef.current?.click())}>Importar</button>
+                </div>
+              </>
+            )}
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -37,18 +81,23 @@ export function App() {
               if (file) importFlow(file);
             }}
           />
-          <span className="view-chip">Vista {view}°</span>
-          <button className="btn" onClick={() => actions.rotate()} title="Girar 90°">↻ 90°</button>
-          <button className="btn ghost" onClick={() => resetFlow()}>Reiniciar</button>
         </div>
       </header>
 
       <main className="stage glass">
         <StadiumView />
         <p className="stage-hint">Toca un módulo o una grada para seleccionarlo</p>
+        <div className="rotate-controls">
+          <button className="round-btn" aria-label="Girar a la izquierda" onClick={() => actions.rotate(-1)}>
+            <RotateIcon dir="left" />
+          </button>
+          <button className="round-btn" aria-label="Girar a la derecha" onClick={() => actions.rotate(1)}>
+            <RotateIcon dir="right" />
+          </button>
+        </div>
       </main>
 
-      <EditorPanel />
+      <EditorPanel open={panelOpen} setOpen={setPanelOpen} />
       <DialogHost />
     </div>
   );
