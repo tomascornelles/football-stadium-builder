@@ -145,7 +145,8 @@ export function StadiumView() {
       const st = getState();
       const bases = layoutBaseHeights(st.stands);
       const anchors: Anchors = computeAnchors(st.stands);
-      const anchorKey = JSON.stringify(anchors);
+      // Las esquinas dependen de las filas de sus vecinos: la clave incluye todas las gradas
+      const anchorKey = JSON.stringify([anchors, st.stands.map((x) => [x.moduleId, x.order, x.offset, x.curve, x.height, x.tilt])]);
       const alive = new Set<string>();
 
       // Césped entre gradas y campo
@@ -187,7 +188,7 @@ export function StadiumView() {
             standGroup.remove(entry.group);
             disposeGroup(entry.group);
           }
-          const group = buildStandGroup(s, base, anchors);
+          const group = buildStandGroup(s, base, anchors, st.stands);
           shadowsOn(group);
           standGroup.add(group);
           entry = { group, key };
@@ -215,7 +216,7 @@ export function StadiumView() {
       for (const id of MODULE_IDS) {
         const ext = st.exteriors[id];
         const extent = moduleExtent(st.stands, id);
-        const tallest = tallestStand(st.stands, id);
+        const tallest = tallestStand(st.stands, id, anchors);
         const key = JSON.stringify([ext, extent, anchorKey, tallest]);
         const current = structures.get(id);
         if (!current || current.key !== key) {

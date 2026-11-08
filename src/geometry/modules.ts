@@ -235,9 +235,38 @@ function offsetFrame(frame: Frame, off: number): Frame {
   };
 }
 
-/** Curva de una grada concreta. Las esquinas parten de la del módulo, desplazada. */
-export function standFrame(stand: Stand, anchors: Anchors): Frame {
-  if (isCorner(stand.moduleId)) return offsetFrame(moduleFrame(stand.moduleId, anchors), stand.offset);
+/** Fila de una grada dentro de su módulo (0 = la más baja). */
+function rankOf(stand: Stand, stands: Stand[]): number {
+  const list = stands.filter((s) => s.moduleId === stand.moduleId).sort((a, b) => a.order - b.order);
+  return Math.max(0, list.findIndex((s) => s.id === stand.id));
+}
+
+/** Curva de una fila de un módulo vecino: la del mismo nivel, o la más alta que tenga. */
+function neighborFrame(id: ModuleId, rank: number, stands: Stand[], anchors: Anchors): Frame {
+  const list = stands.filter((s) => s.moduleId === id).sort((a, b) => a.order - b.order);
+  if (list.length === 0) return moduleFrame(id, anchors);
+  return standFrame(list[Math.min(rank, list.length - 1)], anchors, stands);
+}
+
+/**
+ * Curva de una grada. En las esquinas, cada fila se une a la fila del mismo nivel de los vecinos,
+ * así las tribunas superiores también encajan.
+ */
+export function standFrame(stand: Stand, anchors: Anchors, stands: Stand[]): Frame {
+  if (isCorner(stand.moduleId)) {
+    const [prev, next] = neighbors(stand.moduleId);
+    const rank = rankOf(stand, stands);
+    const pf = neighborFrame(prev, rank, stands, anchors);
+    const nf = neighborFrame(next, rank, stands, anchors);
+    const A = pf.at(1).p;
+    const tA = pf.tan(1);
+    const B = nf.at(0).p;
+    const tB = nf.tan(0);
+    const k = CORNER_HANDLE[cornerTemplate(pf.curved, nf.curved)] * A.distanceTo(B);
+    const P1 = A.clone().addScaledVector(tA, k);
+    const P2 = B.clone().addScaledVector(tB, -k);
+    return offsetFrame(bezierFrame(A, P1, P2, B, true), stand.offset);
+  }
   const [a, b] = straightEnds(stand.moduleId, STAND_GAP + stand.offset);
   return buildFrame(a, b, CURVE_BULGE_BY[stand.curve as CurveType]);
 }
@@ -365,8 +394,8 @@ function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run:
 }
 
 /** Grupo 3D de una grada en coordenadas del mundo. */
-export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors): THREE.Group {
-  const frame = standFrame(stand, anchors);
+export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, stands: Stand[]): THREE.Group {
+  const frame = standFrame(stand, anchors, stands);
   const { points, run } = profileUY(stand, baseY);
   const mat = new THREE.MeshLambertMaterial({ color: stand.color, flatShading: true, side: THREE.DoubleSide });
   const group = new THREE.Group();
@@ -477,7 +506,7 @@ export function buildModuleStructures(
   ext: ModuleExterior,
   extent: ModuleExtent | null,
   anchors: Anchors,
-  tallest: { stand: Stand; base: number } | null,
+  tallest: Tallest | null,
 ): THREE.Group {
   const frame = moduleFrame(moduleId, anchors);
   const group = new THREE.Group();
@@ -492,7 +521,7 @@ export function buildModuleStructures(
   if (ext.roof !== 'none' && extent && tallest) {
     // La cubierta sigue la curva en planta de la grada más alta, pero es horizontal:
     // va a la altura de su borde superior más la holgura elegida
-    const tFrame = standFrame(tallest.stand, anchors);
+    const tFrame = tallest.frame;
     const { run } = profileUY(tallest.stand, tallest.base);
     // Va desde el interior (u negativo, sobre el campo) hasta el borde trasero
     const L = ext.roofWidth > 0 ? ext.roofWidth : run + ext.roofOverhang;
@@ -771,7 +800,13 @@ export function buildApron(anchors: Anchors): THREE.Mesh {
 }
 
 /** Grada más alta de un módulo, con su altura base. */
-export function tallestStand(stands: Stand[], moduleId: ModuleId): { stand: Stand; base: number } | null {
+export interface Tallest {
+  stand: Stand;
+  base: number;
+  frame: Frame;
+}
+
+export function tallestStand(stands: Stand[], moduleId: ModuleId, anchors: Anchors): Tallest | null {
   const bases = layoutBaseHeights(stands);
   let best: { stand: Stand; base: number; top: number } | null = null;
   for (const st of stands) {
@@ -780,7 +815,7 @@ export function tallestStand(stands: Stand[], moduleId: ModuleId): { stand: Stan
     const top = base + st.height;
     if (!best || top > best.top) best = { stand: st, base, top };
   }
-  return best ? { stand: best.stand, base: best.base } : null;
+  return best ? { stand: best.stand, base: best.base, frame: standFrame(best.stand, anchors, stands) } : null;
 }
 
 /** Extremos de la fachada de un módulo en el mundo. */

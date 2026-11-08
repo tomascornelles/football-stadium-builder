@@ -1,4 +1,4 @@
-const CACHE = 'fsb-v0.19.1';
+const CACHE = 'fsb-v0.19.2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', (event) => {
