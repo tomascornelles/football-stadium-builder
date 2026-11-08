@@ -50,7 +50,7 @@ export function App() {
         <div className="brand">
           <span className="logo">⚽</span>
           <div>
-            <strong>Football Stadium Builder</strong>
+            <strong>Piixell</strong>
             <small>v{APP_VERSION}</small>
           </div>
         </div>
