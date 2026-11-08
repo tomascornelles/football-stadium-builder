@@ -200,24 +200,33 @@ export function StadiumView() {
     observer.observe(container);
     resize();
 
-    // Selección: pulsación sin arrastre, con ratón o táctil
+    // Zoom: rueda del ratón y pellizco con dos dedos
+    const MIN_ZOOM = 0.5;
+    const MAX_ZOOM = 3;
+    let zoom = 1;
+    const applyZoom = (z: number) => {
+      zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+      camera.zoom = zoom;
+      camera.updateProjectionMatrix();
+    };
+
+    // Selección y gestos: pulsación sin arrastre, pellizco con dos punteros
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    let down: { x: number; y: number } | null = null;
     const canvas = renderer.domElement;
+    const pointers = new Map<number, { x: number; y: number }>();
+    let down: { x: number; y: number } | null = null;
+    let pinchDist = 0;
 
-    const onDown = (e: PointerEvent) => {
-      down = { x: e.clientX, y: e.clientY };
+    const pointerDistance = () => {
+      const [a, b] = [...pointers.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
     };
-    const onUp = (e: PointerEvent) => {
-      if (!down) return;
-      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
-      down = null;
-      if (moved > 8) return;
 
+    const pick = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
-      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(pointer, camera);
 
       const targets: THREE.Object3D[] = [standGroup, ...hitboxes.values()];
@@ -234,8 +243,55 @@ export function StadiumView() {
         actions.selectModule(hit.object.userData.moduleId as ModuleId);
       }
     };
+
+    const onDown = (e: PointerEvent) => {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 1) {
+        down = { x: e.clientX, y: e.clientY };
+      } else {
+        down = null;
+        pinchDist = pointerDistance();
+      }
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) {
+        const d = pointerDistance();
+        if (pinchDist > 0 && d > 0) applyZoom(zoom * (d / pinchDist));
+        pinchDist = d;
+        down = null;
+      }
+    };
+
+    const onUp = (e: PointerEvent) => {
+      const single = pointers.size === 1 && pointers.has(e.pointerId);
+      pointers.delete(e.pointerId);
+      const start = down;
+      down = null;
+      if (!single || !start) return;
+      const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+      if (moved > 8) return;
+      pick(e.clientX, e.clientY);
+    };
+
+    const onCancel = (e: PointerEvent) => {
+      pointers.delete(e.pointerId);
+      down = null;
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      applyZoom(zoom * Math.exp(-e.deltaY * 0.0015));
+    };
+
     canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerup', onUp);
+    canvas.addEventListener('pointercancel', onCancel);
+    canvas.addEventListener('pointerleave', onCancel);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
 
     const unsubscribe = subscribe(sync);
     sync();
@@ -246,7 +302,11 @@ export function StadiumView() {
       cancelAnimationFrame(frameId);
       observer.disconnect();
       canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
+      canvas.removeEventListener('pointercancel', onCancel);
+      canvas.removeEventListener('pointerleave', onCancel);
+      canvas.removeEventListener('wheel', onWheel);
       entries.forEach((e) => disposeGroup(e.group));
       structures.forEach((e) => disposeGroup(e.group));
       hitboxes.forEach((m) => disposeGroup(m));

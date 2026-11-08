@@ -88,10 +88,10 @@ export function App() {
         <StadiumView />
         <p className="stage-hint">Toca un módulo o una grada para seleccionarlo</p>
         <div className="rotate-controls">
-          <button className="round-btn" aria-label="Girar a la izquierda" onClick={() => actions.rotate(-1)}>
+          <button className="round-btn" aria-label="Girar a la izquierda" onClick={() => actions.rotate(1)}>
             <RotateIcon dir="left" />
           </button>
-          <button className="round-btn" aria-label="Girar a la derecha" onClick={() => actions.rotate(1)}>
+          <button className="round-btn" aria-label="Girar a la derecha" onClick={() => actions.rotate(-1)}>
             <RotateIcon dir="right" />
           </button>
         </div>

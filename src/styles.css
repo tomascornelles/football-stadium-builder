@@ -187,7 +187,7 @@ body {
     max-height: 62vh;
     border-radius: 22px 22px 0 0;
     padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
-    transform: translateY(calc(100% - 56px));
+    transform: translateY(calc(100% - 60px));
     transition: transform 0.3s ease;
     z-index: 10;
   }
@@ -344,4 +344,12 @@ input.switch { width: 42px; height: 24px; accent-color: var(--accent); cursor: p
   .app.panel-open .stage-canvas { bottom: 38vh; transition: bottom 0.3s ease; }
   .app.panel-open .rotate-controls { bottom: calc(38vh + 12px); }
   .stage-canvas { transition: bottom 0.3s ease; }
+}
+
+@media (max-width: 760px) {
+  /* Panel cerrado: el estadio y las flechas quedan encima de la barra */
+  .stage-canvas { bottom: 60px; }
+  .rotate-controls { bottom: 72px; }
+  .app.panel-open .stage-canvas { bottom: 38vh; }
+  .app.panel-open .rotate-controls { bottom: calc(38vh + 12px); }
 }
