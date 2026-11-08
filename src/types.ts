@@ -39,6 +39,14 @@ export type RoofType = 'none' | 'canopy' | 'cantilever' | 'arch';
 export type FloodType = 'none' | 'mast' | 'bar';
 export type ScoreType = 'none' | 'marcador' | 'pantalla';
 export type DecoType = 'none' | 'pillars' | 'towers' | 'struts' | 'arches';
+export type RoofDecoType = 'none' | 'trusses' | 'masts' | 'ridge';
+
+export const ROOF_DECO_OPTIONS: Option<RoofDecoType>[] = [
+  { value: 'none', label: 'Sin decoración' },
+  { value: 'trusses', label: 'Armaduras' },
+  { value: 'masts', label: 'Mástiles con tirantes' },
+  { value: 'ridge', label: 'Viga de coronación' },
+];
 
 export interface Option<T extends string> {
   value: T;
@@ -113,6 +121,12 @@ export interface ModuleExterior {
   decoCount: number;
   decoHeight: number;
   decoColor: string;
+
+  /** Decoración sobre la cubierta. */
+  roofDeco: RoofDecoType;
+  roofDecoCount: number;
+  roofDecoHeight: number;
+  roofDecoColor: string;
 }
 
 export const DEFAULT_EXTERIOR: ModuleExterior = {
@@ -143,6 +157,11 @@ export const DEFAULT_EXTERIOR: ModuleExterior = {
   decoCount: 4,
   decoHeight: 12,
   decoColor: '#e5e7eb',
+
+  roofDeco: 'none',
+  roofDecoCount: 4,
+  roofDecoHeight: 6,
+  roofDecoColor: '#9ca3af',
 };
 
 /** Rangos numéricos válidos de los exteriores. */
@@ -160,6 +179,8 @@ export const EXTERIOR_RANGES: Partial<Record<keyof ModuleExterior, [number, numb
   scoreWidth: [2, 20],
   decoCount: [1, 12],
   decoHeight: [4, 60],
+  roofDecoCount: [1, 12],
+  roofDecoHeight: [2, 20],
 };
 
 export interface StylePreset {
@@ -173,23 +194,23 @@ export interface StylePreset {
 export const STYLE_PRESETS: StylePreset[] = [
   {
     id: 'bernabeu', name: 'Bernabéu', hint: 'Torres altas y cubierta en voladizo',
-    values: { wall: 'concrete', wallHeight: 22, wallColor: '#d1d5db', roof: 'cantilever', roofHeight: 5, roofOverhang: 6, roofSlope: 10, roofColumns: true, roofColor: '#e5e7eb', deco: 'towers', decoCount: 2, decoHeight: 42, decoColor: '#e5e7eb' },
+    values: { wall: 'concrete', wallHeight: 22, wallColor: '#d1d5db', roof: 'cantilever', roofHeight: 5, roofOverhang: 6, roofSlope: 10, roofColumns: true, roofColor: '#e5e7eb', deco: 'towers', decoCount: 2, decoHeight: 42, decoColor: '#e5e7eb', roofDeco: 'ridge', roofDecoCount: 1, roofDecoHeight: 3, roofDecoColor: '#ffffff' },
   },
   {
     id: 'mestalla', name: 'Mestalla', hint: 'Fachada de ladrillo con arcos y marquesina',
-    values: { wall: 'brick', wallHeight: 16, wallColor: '#a4553a', roof: 'canopy', roofHeight: 5, roofOverhang: 4, roofColumns: true, roofColor: '#d6d3cd', deco: 'arches', decoCount: 6, decoHeight: 10, decoColor: '#d6c9b5' },
+    values: { wall: 'brick', wallHeight: 16, wallColor: '#a4553a', roof: 'canopy', roofHeight: 5, roofOverhang: 4, roofColumns: true, roofColor: '#d6d3cd', deco: 'arches', decoCount: 6, decoHeight: 10, decoColor: '#d6c9b5', roofDeco: 'ridge', roofDecoCount: 1, roofDecoHeight: 3, roofDecoColor: '#c9a227' },
   },
   {
     id: 'san-siro', name: 'San Siro', hint: 'Anillo de arcos y cubierta curva',
-    values: { wall: 'concrete', wallHeight: 20, wallColor: '#cbd5e1', roof: 'arch', roofHeight: 4, roofOverhang: 5, roofSlope: 14, roofColumns: true, roofColor: '#e5e7eb', deco: 'arches', decoCount: 10, decoHeight: 12, decoColor: '#cbd5e1' },
+    values: { wall: 'concrete', wallHeight: 20, wallColor: '#cbd5e1', roof: 'arch', roofHeight: 4, roofOverhang: 5, roofSlope: 14, roofColumns: true, roofColor: '#e5e7eb', deco: 'arches', decoCount: 10, decoHeight: 12, decoColor: '#cbd5e1', roofDeco: 'trusses', roofDecoCount: 5, roofDecoHeight: 14, roofDecoColor: '#b91c1c' },
   },
   {
     id: 'old-trafford', name: 'Old Trafford', hint: 'Ladrillo con soportes y pilares',
-    values: { wall: 'brick', wallHeight: 20, wallColor: '#8b3a2b', roof: 'cantilever', roofHeight: 4, roofOverhang: 5, roofSlope: 12, roofColumns: true, roofColor: '#9ca3af', deco: 'struts', decoCount: 8, decoHeight: 26, decoColor: '#4b5563' },
+    values: { wall: 'brick', wallHeight: 20, wallColor: '#8b3a2b', roof: 'cantilever', roofHeight: 4, roofOverhang: 5, roofSlope: 12, roofColumns: true, roofColor: '#9ca3af', deco: 'struts', decoCount: 8, decoHeight: 26, decoColor: '#4b5563', roofDeco: 'trusses', roofDecoCount: 6, roofDecoHeight: 10, roofDecoColor: '#374151' },
   },
   {
     id: 'allianz', name: 'Allianz Arena', hint: 'Fachada de cristal con pilares',
-    values: { wall: 'glass', wallHeight: 26, wallColor: '#e0f2fe', roof: 'canopy', roofHeight: 4, roofOverhang: 3, roofColumns: false, roofColor: '#f1f5f9', deco: 'pillars', decoCount: 12, decoHeight: 26, decoColor: '#f1f5f9' },
+    values: { wall: 'glass', wallHeight: 26, wallColor: '#e0f2fe', roof: 'canopy', roofHeight: 4, roofOverhang: 3, roofColumns: false, roofColor: '#f1f5f9', deco: 'pillars', decoCount: 12, decoHeight: 26, decoColor: '#f1f5f9', roofDeco: 'masts', roofDecoCount: 6, roofDecoHeight: 14, roofDecoColor: '#f1f5f9' },
   },
 ];
 

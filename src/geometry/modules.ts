@@ -475,13 +475,13 @@ export function buildModuleStructures(
 
   const deckY = ext.roof !== 'none' && extent ? ex.top + ext.roofHeight : ex.top + 4;
   if (ext.roof !== 'none' && extent && tallest) {
-    // La cubierta sigue la curva y la inclinación de la grada más alta
+    // La cubierta sigue la curva en planta de la grada más alta, pero es horizontal:
+    // va a la altura de su borde superior más la holgura elegida
     const tFrame = standFrame(tallest.stand, anchors);
     const { run } = profileUY(tallest.stand, tallest.base);
-    const slope = tallest.stand.height / run;
     const L = run + ext.roofOverhang;
     const T = ext.roofThickness;
-    const yb = (u: number) => tallest.base + ext.roofHeight + slope * u;
+    const yb = (_u: number) => tallest.base + tallest.stand.height + ext.roofHeight;
     // La cubierta curva se abomba en el centro, según su parámetro de flecha
     const bump = (u: number) => (ext.roof === 'arch' ? ext.roofSlope * 0.3 * Math.sin((Math.PI * u) / L) : 0);
     const steps = ext.roof === 'arch' ? 12 : 1;
@@ -498,6 +498,10 @@ export function buildModuleStructures(
     if (ext.roofColumns) {
       addColumnsAlong(group, tFrame, [L - 0.8], yb(L - 0.8), concreteMaterial());
       if (ext.roof !== 'canopy') addColumnsAlong(group, tFrame, [0.8], yb(0.8), concreteMaterial());
+    }
+    if (ext.roofDeco !== 'none') {
+      const decoMat = new THREE.MeshLambertMaterial({ color: ext.roofDecoColor, flatShading: true });
+      addRoofDecoration(group, tFrame, L, yb(0), T, ext, decoMat);
     }
   }
 
@@ -639,6 +643,63 @@ function addDecoration(
           pts.push(pointAt(frame, tt, outerU, R * Math.sin(th)));
         }
         for (let i = 0; i < steps; i++) addSegment(group, pts[i], pts[i + 1], 1.2, mat);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/**
+ * Decoración sobre la cubierta: armaduras, mástiles con tirantes o viga de coronación.
+ * roofY es la base de la cubierta; la superficie superior queda en roofY + T.
+ */
+function addRoofDecoration(
+  group: THREE.Group,
+  frame: Frame,
+  L: number,
+  roofY: number,
+  T: number,
+  ext: ModuleExterior,
+  mat: THREE.Material,
+) {
+  const top = roofY + T;
+  const count = Math.max(1, ext.roofDecoCount);
+  const ts = Array.from({ length: count }, (_, k) => (k + 0.5) / count);
+  const H = ext.roofDecoHeight;
+
+  switch (ext.roofDeco) {
+    case 'ridge': {
+      group.add(sweepMesh(frame, rectPoints(0, top, L, top + 1.2), mat));
+      break;
+    }
+    case 'trusses': {
+      // Arco de acero en el plano transversal, con cuerda inferior y montantes
+      const steps = 10;
+      for (const t of ts) {
+        addSegment(group, pointAt(frame, t, 0, top), pointAt(frame, t, L, top), 0.8, mat);
+        const arc: THREE.Vector3[] = [];
+        for (let i = 0; i <= steps; i++) {
+          const th = (Math.PI * i) / steps;
+          arc.push(pointAt(frame, t, L / 2 - (L / 2) * Math.cos(th), top + H * Math.sin(th)));
+        }
+        for (let i = 0; i < steps; i++) addSegment(group, arc[i], arc[i + 1], 0.8, mat);
+        for (let i = 2; i < steps - 1; i += 2) {
+          const foot = pointAt(frame, t, L / 2 - (L / 2) * Math.cos((Math.PI * i) / steps), top);
+          addSegment(group, arc[i], foot, 0.5, mat);
+        }
+      }
+      break;
+    }
+    case 'masts': {
+      // Mástiles en el borde trasero, con tirantes hasta el borde de la cubierta
+      for (const t of ts) {
+        const base = pointAt(frame, t, L - 1, top);
+        const tip = pointAt(frame, t, L - 1, top + H);
+        addSegment(group, base, tip, 0.7, mat);
+        addSegment(group, tip, pointAt(frame, t, 0, top), 0.2, mat);
+        addSegment(group, tip, pointAt(frame, t, L, top), 0.2, mat);
       }
       break;
     }

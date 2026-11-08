@@ -2,6 +2,7 @@ import { actions } from '../store';
 import { confirmDialog } from './dialog';
 import {
   DECO_OPTIONS,
+  ROOF_DECO_OPTIONS,
   STYLE_PRESETS,
   StylePreset,
   FLOOD_OPTIONS,
@@ -107,6 +108,18 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
             )}
             <Toggle label="Pilares de apoyo" checked={ext.roofColumns} onChange={(v) => set({ roofColumns: v })} />
             <ColorField label="Color" value={ext.roofColor} onChange={(v) => set({ roofColor: v })} />
+            <Select label="Decoración sobre cubierta" value={ext.roofDeco} options={ROOF_DECO_OPTIONS}
+              onChange={(v) => set({ roofDeco: v })} />
+            {ext.roofDeco !== 'none' && (
+              <>
+                <Slider label="Cantidad" unit="" value={ext.roofDecoCount} min={1} max={12} step={1}
+                  onChange={(v) => set({ roofDecoCount: v })} />
+                <Slider label="Altura" unit="m" value={ext.roofDecoHeight} min={2} max={20} step={1}
+                  onChange={(v) => set({ roofDecoHeight: v })} />
+                <ColorField label="Color de decoración" value={ext.roofDecoColor}
+                  onChange={(v) => set({ roofDecoColor: v })} />
+              </>
+            )}
           </>
         )}
       </details>
