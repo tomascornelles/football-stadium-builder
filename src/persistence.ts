@@ -1,6 +1,7 @@
 import { getState } from './store';
 import { sanitizeEnvironment } from './environment';
 import { LIMITS } from './config';
+import { resolveFacade } from './migrate';
 import {
   DEFAULT_EXTERIOR,
   EXTERIOR_RANGES,
@@ -16,7 +17,8 @@ import {
   ROOF_OPTIONS,
   SCORE_OPTIONS,
   Stand,
-  WALL_OPTIONS,
+  TOWER_POS_OPTIONS,
+  migrateColumns,
 } from './types';
 
 export const FILE_FORMAT = 'football-stadium-builder';
@@ -60,7 +62,7 @@ export function currentProject(name: string): Project {
   };
 }
 
-function toStand(raw: any): Stand {
+function toStand(raw: any, rawExt?: any): Stand {
   if (
     !raw || typeof raw.id !== 'string' || !MODULE_IDS.includes(raw.moduleId) ||
     !isNum(raw.height) || !isNum(raw.tilt) || !isNum(raw.offset) || !isNum(raw.order) ||
@@ -76,9 +78,10 @@ function toStand(raw: any): Stand {
     tilt: clamp(raw.tilt, LIMITS.tilt.min, LIMITS.tilt.max),
     offset: clamp(raw.offset, LIMITS.offset.min, LIMITS.offset.max),
     color: raw.color,
-    columns: raw.columns === true,
+    columns: migrateColumns(raw),
     railing: raw.railing === true,
     curve: migrateCurve(raw),
+    facade: resolveFacade(raw, rawExt),
   };
 }
 
@@ -96,19 +99,20 @@ function toExterior(raw: any): ModuleExterior {
   const ext = merged as unknown as ModuleExterior;
   return {
     ...ext,
-    wall: pick(ext.wall, WALL_OPTIONS, 'none'),
+    // Compatibilidad: el antiguo marcador de marquesina pasa a ser un tipo de marcador
+    score: pick(ext.score === 'none' && (ext as any).roofScore === true ? 'marquesina' : ext.score, SCORE_OPTIONS, 'none'),
     roof: pick(ext.roof, ROOF_OPTIONS, 'none'),
     flood: pick(ext.flood, FLOOD_OPTIONS, 'none'),
-    score: pick(ext.score, SCORE_OPTIONS, 'none'),
     deco: pick(ext.deco, DECO_OPTIONS, 'none'),
     roofDeco: pick(ext.roofDeco, ROOF_DECO_OPTIONS, 'none'),
     roofDecoColor: isColor(ext.roofDecoColor) ? ext.roofDecoColor : DEFAULT_EXTERIOR.roofDecoColor,
     decoColor: isColor(ext.decoColor) ? ext.decoColor : DEFAULT_EXTERIOR.decoColor,
-    wallColor: isColor(ext.wallColor) ? ext.wallColor : DEFAULT_EXTERIOR.wallColor,
+    circleTowerPos: pick(ext.circleTowerPos, TOWER_POS_OPTIONS, 'center'),
+    circleTowerColor: isColor(ext.circleTowerColor) ? ext.circleTowerColor : DEFAULT_EXTERIOR.circleTowerColor,
     roofColor: isColor(ext.roofColor) ? ext.roofColor : DEFAULT_EXTERIOR.roofColor,
     floodColor: isColor(ext.floodColor) ? ext.floodColor : DEFAULT_EXTERIOR.floodColor,
     roofColumns: ext.roofColumns === true,
-    roofScore: ext.roofScore === true,
+    stairs: ext.stairs === true,
   };
 }
 
@@ -133,7 +137,7 @@ export function parseProject(text: string): Project {
     formatVersion: FILE_FORMAT_VERSION,
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : 'Estadio importado',
     savedAt: typeof raw.savedAt === 'string' ? raw.savedAt : new Date().toISOString(),
-    stands: raw.stands.map(toStand),
+    stands: raw.stands.map((r: any) => toStand(r, raw.exteriors?.[r?.moduleId])),
     exteriors,
     environment: sanitizeEnvironment(raw.environment),
   };

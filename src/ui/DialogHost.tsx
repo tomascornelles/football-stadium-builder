@@ -6,20 +6,6 @@ import { deleteSavedFlow, requestLoad } from './flows';
 
 export function DialogHost() {
   const pending = useSyncExternalStore(subscribeDialog, getDialogState);
-  // Área visible (sin el teclado en móvil): el diálogo nunca queda tapado
-  const [view, setView] = useState<{ top: number; height: number } | null>(null);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const update = () => setView({ top: vv.offsetTop, height: vv.height });
-    update();
-    vv.addEventListener('resize', update);
-    vv.addEventListener('scroll', update);
-    return () => {
-      vv.removeEventListener('resize', update);
-      vv.removeEventListener('scroll', update);
-    };
-  }, []);
 
   useEffect(() => {
     if (!pending) return;
@@ -36,7 +22,6 @@ export function DialogHost() {
   return (
     <div
       className="modal-overlay"
-      style={view ? { top: view.top, height: view.height } : undefined}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) closeDialog();
       }}
