@@ -62,6 +62,22 @@ class PolyBuffer {
     }
   }
 
+  /** Brazo que cambia de anchura entre dos distancias (une vías de distinto ancho). */
+  taper(cx: number, cz: number, dx: number, dz: number, from: number, to: number, w0: number, w1: number) {
+    const px = -dz;
+    const pz = dx;
+    const sx = cx + dx * from;
+    const sz = cz + dz * from;
+    const ex = cx + dx * to;
+    const ez = cz + dz * to;
+    this.polygon([
+      [sx + px * (w0 / 2), sz + pz * (w0 / 2)],
+      [ex + px * (w1 / 2), ez + pz * (w1 / 2)],
+      [ex - px * (w1 / 2), ez - pz * (w1 / 2)],
+      [sx - px * (w0 / 2), sz - pz * (w0 / 2)],
+    ]);
+  }
+
   /** Brazo rectangular desde (cx, cz) en la dirección (dx, dz). */
   arm(cx: number, cz: number, dx: number, dz: number, from: number, to: number, w: number) {
     const px = -dz * (w / 2);
@@ -258,36 +274,41 @@ function buildWater(env: Record<string, EnvCell>): THREE.Group {
 
 /* ---------- Carreteras, avenidas, caminos, glorietas y aparcamientos ---------- */
 
-/** Semáforo y farolas se colocan en las vías; los coches circulan por los brazos. */
-function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
-  const group = new THREE.Group();
-  const sidewalk = new PolyBuffer(Y.sidewalk);
-  const road = new PolyBuffer(Y.road);
-  const path = new PolyBuffer(Y.path);
-  const lines = new PolyBuffer(Y.line);
-  const island = new PolyBuffer(Y.island);
-  const cars: THREE.Mesh[] = [];
-  const lights: { x: number; z: number; color: number }[] = [];
-  const lamps: [number, number][] = [];
+/**
+ * Reglas de la red viaria:
+ * - Glorieta: anillo de 8 vías alrededor de una celda libre.
+ * - Aparcamiento: bloque de 3 × 3 vías con como máximo un acceso a la red.
+ * - Cruce: vía con 3 o 4 vías vecinas (en T o en X). Nunca es aparcamiento.
+ * - Vía: el resto de vías.
+ */
+export function classifyRoads(env: Record<string, EnvCell>) {
   const via = (i: number, j: number) => isVia(at(env, i, j));
-  const surf = (i: number, j: number) => isSurface(at(env, i, j));
-
-  // Bloques de 3 × 3 vías son aparcamiento; las vías interiores (cuatro vecinos) también
   const parking = new Set<string>();
+  const junction = new Set<string>();
+  const inRound = new Set<string>();
+  const roundCenters = new Set<string>();
+
   for (const [key, cell] of Object.entries(env)) {
     if (!isVia(cell.type)) continue;
     const [i, j] = key.split(',').map(Number);
+    if (DIRS.filter(([dx, dz]) => via(i + dx, j + dz)).length >= 3) junction.add(key);
+
     let full3 = true;
-    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
-      if (!via(i + di, j + dj)) full3 = false;
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) if (!via(i + di, j + dj)) full3 = false;
+    if (!full3) continue;
+    // Accesos: vías que tocan el bloque desde fuera, por cualquiera de sus cuatro lados
+    let access = 0;
+    for (let d = -1; d <= 1; d++) {
+      if (via(i + d, j - 2)) access++;
+      if (via(i + d, j + 2)) access++;
+      if (via(i - 2, j + d)) access++;
+      if (via(i + 2, j + d)) access++;
     }
-    if (full3) for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) parking.add(cellKey(i + di, j + dj));
-    if (via(i + 1, j) && via(i - 1, j) && via(i, j + 1) && via(i, j - 1)) parking.add(key);
+    if (access <= 1) {
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) parking.add(cellKey(i + di, j + dj));
+    }
   }
 
-  // Glorietas: anillo de 8 vías alrededor de una celda central libre
-  const inRound = new Set<string>();
-  const roundCenters = new Set<string>();
   for (const [key, cell] of Object.entries(env)) {
     if (!isVia(cell.type)) continue;
     const [i, j] = key.split(',').map(Number);
@@ -307,6 +328,47 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
       }
     }
   }
+  return { parking, junction, inRound, roundCenters };
+}
+
+/** Paso de peatones (franjas paralelas al tráfico) y línea de detención en un brazo de cruce. */
+function crosswalk(lines: PolyBuffer, cx: number, cz: number, dx: number, dz: number, W: number) {
+  const px = -dz;
+  const pz = dx;
+  const s1 = HALF - 0.3;
+  const s0 = HALF - 3.3;
+  const count = Math.max(3, Math.floor((W - 1.5) / 1.6));
+  for (let k = 0; k < count; k++) {
+    const p = -(W - 2) / 2 + ((k + 0.5) * (W - 2)) / count;
+    lines.arm(cx + px * p, cz + pz * p, dx, dz, s0, s1, 0.7);
+  }
+  const sStop = s0 - 0.6;
+  const hw = (W - 1) / 2;
+  const bx = cx + dx * sStop;
+  const bz = cz + dz * sStop;
+  lines.polygon([
+    [bx - px * hw, bz - pz * hw],
+    [bx + px * hw, bz + pz * hw],
+    [bx + px * hw + dx * 0.45, bz + pz * hw + dz * 0.45],
+    [bx - px * hw + dx * 0.45, bz - pz * hw + dz * 0.45],
+  ]);
+}
+
+/** Semáforo y farolas se colocan en las vías; los coches circulan por los brazos. */
+function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
+  const group = new THREE.Group();
+  const sidewalk = new PolyBuffer(Y.sidewalk);
+  const road = new PolyBuffer(Y.road);
+  const path = new PolyBuffer(Y.path);
+  const lines = new PolyBuffer(Y.line);
+  const island = new PolyBuffer(Y.island);
+  const cars: THREE.Mesh[] = [];
+  const lights: { x: number; z: number; color: number }[] = [];
+  const lamps: [number, number][] = [];
+  const via = (i: number, j: number) => isVia(at(env, i, j));
+  const surf = (i: number, j: number) => isSurface(at(env, i, j));
+
+  const { parking, junction, inRound, roundCenters } = classifyRoads(env);
 
   for (const [key, cell] of Object.entries(env)) {
     if (!isSurface(cell.type)) continue;
@@ -331,13 +393,28 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
     const surfArms = DIRS.filter(([dx, dz]) => surf(i + dx, j + dz));
     const viaArms = DIRS.filter(([dx, dz]) => via(i + dx, j + dz));
 
+    // Anchura del brazo hacia cada vecino: si es otra vía, el brazo se ensancha con transición suave
+    const widthTo = (dx: number, dz: number) => {
+      const t = at(env, i + dx, j + dz);
+      return isVia(t) ? WIDTH[t as 'road' | 'avenue'] : W;
+    };
+    const isJunction = junction.has(key);
+
     sidewalk.disc(cx, cz, W / 2 + SIDEWALK);
-    for (const [dx, dz] of viaArms) sidewalk.arm(cx, cz, dx, dz, 0, HALF, W + 2 * SIDEWALK);
+    for (const [dx, dz] of viaArms) sidewalk.taper(cx, cz, dx, dz, 0, HALF, W + 2 * SIDEWALK, widthTo(dx, dz) + 2 * SIDEWALK);
 
     road.disc(cx, cz, W / 2);
-    for (const [dx, dz] of surfArms) road.arm(cx, cz, dx, dz, 0, HALF, W);
+    for (const [dx, dz] of surfArms) {
+      if (isVia(at(env, i + dx, j + dz))) road.taper(cx, cz, dx, dz, 0, HALF, W, widthTo(dx, dz));
+      else road.arm(cx, cz, dx, dz, 0, HALF, W);
+    }
 
     for (const [dx, dz] of viaArms) {
+      if (isJunction) {
+        // Cruce: sin líneas centrales, con paso de peatones y línea de detención en cada brazo
+        crosswalk(lines, cx, cz, dx, dz, W);
+        continue;
+      }
       if (cell.type === 'avenue') {
         // Avenida: dos líneas discontinuas y mediana central con la vía vecina
         const px = -dz;
