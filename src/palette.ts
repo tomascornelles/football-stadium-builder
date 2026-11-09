@@ -3,14 +3,10 @@
  * Coral: exacto (#FF5E4D). Arena y petróleo: estimados de la referencia.
  */
 export const UI_PALETTE = {
-  /** Fondos */
-  sand: '#EDE7E3',
-  /** Acento principal */
-  teal: '#16697A',
-  /** Acento secundario: solo detalles */
-  coral: '#FFA62B',
-  /** Textos */
-  ink: '#1D2729',
+  sand: '#E8DCC4',
+  teal: '#0F4C5C',
+  coral: '#FF5E4D',
+  ink: '#0A2E38',
   mist: '#A9C3C6',
 } as const;
 

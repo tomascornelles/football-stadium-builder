@@ -59,7 +59,7 @@ export function App() {
     <div className={`app ${panelOpen ? 'panel-open' : ''}`}>
       <header className="toolbar glass">
         <div className="brand">
-          <img className="logo" src="./logo.svg" alt="" width="32" height="32" />
+          <span className="logo">⚽</span>
           <div>
             <strong>Piixell</strong>
             <small>v{APP_VERSION}</small>
