@@ -117,9 +117,17 @@ export function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function commit(patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) {
-  const p = typeof patch === 'function' ? patch(state) : patch;
-  state = { ...state, ...p };
+/** Parte del estadio que se puede deshacer (no la vista, selección ni iluminación). */
+type Doc = Pick<AppState, 'stands' | 'exteriors' | 'environment'>;
+const UNDO_LIMIT = 100;
+/** Acciones seguidas en menos de este tiempo (un arrastre, un deslizador) cuentan como una sola. */
+const UNDO_GROUP_MS = 600;
+const undoStack: Doc[] = [];
+let lastDocChange = 0;
+
+const docOf = (s: AppState): Doc => ({ stands: s.stands, exteriors: s.exteriors, environment: s.environment });
+
+function publish() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       stands: state.stands,
@@ -134,6 +142,38 @@ function commit(patch: Partial<AppState> | ((s: AppState) => Partial<AppState>))
     /* almacenamiento no disponible: la sesión sigue funcionando */
   }
   listeners.forEach((l) => l());
+}
+
+function commit(patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)) {
+  const prev = state;
+  const p = typeof patch === 'function' ? patch(state) : patch;
+  state = { ...state, ...p };
+  const docChanged = prev.stands !== state.stands || prev.exteriors !== state.exteriors
+    || prev.environment !== state.environment;
+  if (docChanged) {
+    const now = Date.now();
+    if (now - lastDocChange > UNDO_GROUP_MS) {
+      undoStack.push(docOf(prev));
+      if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+    }
+    lastDocChange = now;
+  }
+  publish();
+}
+
+export const canUndo = (): boolean => undoStack.length > 0;
+
+/** Deshace el último cambio del estadio o del entorno. */
+export function undoLast() {
+  const snap = undoStack.pop();
+  if (!snap) return;
+  lastDocChange = 0;
+  state = {
+    ...state,
+    ...snap,
+    selectedStandId: snap.stands.some((x) => x.id === state.selectedStandId) ? state.selectedStandId : null,
+  };
+  publish();
 }
 
 let idCounter = Date.now();

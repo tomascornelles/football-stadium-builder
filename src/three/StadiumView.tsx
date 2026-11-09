@@ -332,8 +332,11 @@ export function StadiumView() {
     function animate() {
       frameId = requestAnimationFrame(animate);
       const diff = targetAngle - world.rotation.y;
-      if (Math.abs(diff) > 1e-4) world.rotation.y += diff * ROTATE_SPEED;
+      const rotating = Math.abs(diff) > 1e-4;
+      if (rotating) world.rotation.y += diff * ROTATE_SPEED;
       else world.rotation.y = targetAngle;
+      // Las luces siguen la posición de sus cabezales: al girar hay que recolocarlas
+      if (rotating && lastNight) updateFloodLights(true);
       renderer.render(scene, camera);
     }
 

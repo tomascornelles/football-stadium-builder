@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { StadiumView } from '../three/StadiumView';
-import { actions, getState, subscribe } from '../store';
+import { actions, canUndo, getState, subscribe, undoLast } from '../store';
 import { APP_VERSION } from '../config';
 import { EditorPanel } from './EditorPanel';
 import { EnvironmentPanel } from './EnvironmentPanel';
@@ -39,6 +39,19 @@ export function App() {
     setMenuOpen((o) => !o);
   };
   const inEnv = state.mode === 'environment';
+
+  // Ctrl+Z / Cmd+Z deshace (fuera de campos de texto)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      e.preventDefault();
+      undoLast();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Al seleccionar una grada se abre el editor
   useEffect(() => {
@@ -84,6 +97,18 @@ export function App() {
               Entorno
             </button>
           </div>
+          <button
+            className="btn icon undo-btn"
+            aria-label="Deshacer"
+            title="Deshacer (Ctrl+Z)"
+            disabled={!canUndo()}
+            onClick={() => undoLast()}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="undo-icon">
+              <path d="M9 14L4 9l5-5" />
+              <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+            </svg>
+          </button>
           <div className="menu-wrap">
             <button
               ref={menuBtn}
@@ -98,12 +123,12 @@ export function App() {
               <>
                 <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />
                 <div className="menu glass" role="menu" style={{ top: menuPos.top, right: menuPos.right }}>
+                  <button className="menu-item danger" role="menuitem" onClick={fromMenu(() => resetFlow())}>Nuevo</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => saveFlow())}>Guardar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => libraryFlow())}>Cargar</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => exportFlow())}>Exportar</button>
-                  <button className="menu-item" role="menuitem" onClick={fromMenu(() => pngFlow())}>Descargar PNG</button>
                   <button className="menu-item" role="menuitem" onClick={fromMenu(() => fileRef.current?.click())}>Importar</button>
-                  <button className="menu-item danger" role="menuitem" onClick={fromMenu(() => resetFlow())}>Nuevo</button>
+                  <button className="menu-item" role="menuitem" onClick={fromMenu(() => pngFlow())}>Descargar PNG</button>
                 </div>
               </>,
               document.body,

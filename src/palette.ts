@@ -14,18 +14,14 @@ export const UI_PALETTE = {
   mist: '#A9C3C6',
 } as const;
 
-/** 12 colores predefinidos para fachadas, gradas, cubiertas y edificios. */
+/** 24 colores predefinidos, ordenados por tonos: neutros, tierras, corales y azules/verdes. */
 export const PALETTE_COLORS: string[] = [
-  '#E8DCC4', // arena
-  '#D4B98C', // arena oscura
-  '#F7F3EA', // marfil
-  '#0F4C5C', // petróleo
-  '#1F7A8C', // mar
-  '#5FB3B3', // turquesa suave
-  '#FF5E4D', // coral
-  '#FF8C7A', // coral suave
-  '#C2452D', // ladrillo
-  '#F2A65A', // albaricoque
-  '#2B3A42', // grafito
-  '#8FA3A8', // piedra
+  // Neutros
+  '#1D2729', '#2B3A42', '#5C6B70', '#8FA3A8', '#C5CFD1', '#F7F3EA',
+  // Tierras y arenas
+  '#F5E6C8', '#E8DCC4', '#D4B98C', '#F2A65A', '#B98B5A', '#8A5A36',
+  // Corales y rojos
+  '#FFB3A6', '#FF8C7A', '#FF5E4D', '#E14A3A', '#C2452D', '#8B2E1F',
+  // Azules y verdes
+  '#A8D8CF', '#5FB3B3', '#1F7A8C', '#16697A', '#0F4C5C', '#0A2E38',
 ];

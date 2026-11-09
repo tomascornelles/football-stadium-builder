@@ -87,9 +87,7 @@ export function StandEditor({ stand }: { stand: Stand }) {
           </>
         )}
         <ApplyRow
-          moduleLabel="Al módulo"
-          onModule={() => actions.applyStandPatch(stand.id, { facade: f }, 'module')}
-          allLabel="A todos"
+          allLabel="Fachada a todos los módulos"
           onAll={() => actions.applyStandPatch(stand.id, { facade: f }, 'all')}
         />
       </details>
