@@ -9,6 +9,8 @@ Colores planos, sin degradados. Superficies translúcidas con desenfoque de fond
 - **Superficie** (`.glass`, `.toolbar`, `.panel`, `.menu`, `.modal`): color plano `rgba(237,231,227,0.8)` (fondo al 80 %), `backdrop-filter: blur(24px)`, borde de 1 px `rgba(29,39,41,0.12)`, radio 8 px.
 - **Brillo**: borde superior de 1 px claro `inset 0 1px 0 rgba(255,255,255,0.9)`. Sin degradados.
 - **Sombra**: suave por detrás, `0 8px 24px rgba(29,39,41,0.18)`.
+- **Radio único**: 8 px en todos los elementos, también en casillas (4 px) y botones de selección.
+- **Separación**: 8 px entre elementos.
 - **Espaciado**: márgenes y paddings en múltiplos de 8 (8, 16, 24, 32). Las variables `--space-1` a `--space-3` lo expresan.
 - **Acento secundario**: solo en detalles (foco de teclado, marca de selección). Nunca en superficies ni en botones.
 
