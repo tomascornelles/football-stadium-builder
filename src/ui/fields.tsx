@@ -40,7 +40,7 @@ export function ApplyRow({
   allLabel: string;
 }) {
   return (
-    <div className="actions">
+    <div className="actions apply-row">
       {onModule && <button className="btn" onClick={onModule}>{moduleLabel}</button>}
       <button className="btn" onClick={onAll}>{allLabel}</button>
     </div>

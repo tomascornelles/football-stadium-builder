@@ -99,9 +99,10 @@ function toExterior(raw: any): ModuleExterior {
   const ext = merged as unknown as ModuleExterior;
   return {
     ...ext,
+    // Compatibilidad: el antiguo marcador de marquesina pasa a ser un tipo de marcador
+    score: pick(ext.score === 'none' && (ext as any).roofScore === true ? 'marquesina' : ext.score, SCORE_OPTIONS, 'none'),
     roof: pick(ext.roof, ROOF_OPTIONS, 'none'),
     flood: pick(ext.flood, FLOOD_OPTIONS, 'none'),
-    score: pick(ext.score, SCORE_OPTIONS, 'none'),
     deco: pick(ext.deco, DECO_OPTIONS, 'none'),
     roofDeco: pick(ext.roofDeco, ROOF_DECO_OPTIONS, 'none'),
     roofDecoColor: isColor(ext.roofDecoColor) ? ext.roofDecoColor : DEFAULT_EXTERIOR.roofDecoColor,
@@ -111,7 +112,6 @@ function toExterior(raw: any): ModuleExterior {
     roofColor: isColor(ext.roofColor) ? ext.roofColor : DEFAULT_EXTERIOR.roofColor,
     floodColor: isColor(ext.floodColor) ? ext.floodColor : DEFAULT_EXTERIOR.floodColor,
     roofColumns: ext.roofColumns === true,
-    roofScore: ext.roofScore === true,
     stairs: ext.stairs === true,
   };
 }

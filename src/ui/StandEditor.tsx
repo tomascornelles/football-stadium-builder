@@ -70,8 +70,8 @@ export function StandEditor({ stand }: { stand: Stand }) {
         {f.kind !== 'none' && (
           <>
             <Slider
-              label="Profundidad" unit="m" hint="(0 = a ras)" value={f.depth}
-              min={0} max={40} step={0.5} onChange={(v) => setFacade({ depth: v })}
+              label="Grosor" unit="m" value={f.depth}
+              min={0.5} max={40} step={0.5} onChange={(v) => setFacade({ depth: v })}
             />
             {panels && (
               <Slider

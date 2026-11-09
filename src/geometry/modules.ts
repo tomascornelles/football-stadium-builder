@@ -13,14 +13,14 @@ const COLUMN_STEP = 8;
 const CONCRETE = 0xb9c0c9;
 const STEEL = 0xd1d5db;
 const TOWER = 0x9ca3af;
-/** Grosor de la tableta de una grada sin fachada (m). */
+/** Grosor del tablero hueco de una grada (m). */
 const TABLET = 0.5;
-/** Grosor de la fachada de una grada (m). */
-const FACADE_T = 1.0;
+/** Azul del marcador LED. */
+const LED_BLUE = 0x0ea5e9;
 /** Altura de cada tramo de escalera exterior (m). */
 const STAIR_FLIGHT = 5;
-/** Radio de las torres circulares adjuntas (m). */
-const TOWER_R = 4;
+/** Radio de las torres de escaleras (m). */
+const TOWER_R = 5;
 /** Color medio del césped, para la franja entre gradas y campo. */
 const APRON_COLOR = 0x3d9243;
 const RAIL_HEIGHT = 1.0;
@@ -407,54 +407,54 @@ export function rowCount(height: number): number {
   return Math.max(2, Math.round(height / ROW_RISE));
 }
 
-/** Altura inferior del cuerpo de la grada. Sin fachada es una tableta de 0,5 m. */
-function standBottom(stand: Stand, baseY: number): number {
-  const noFacade = stand.facade.kind === 'none';
-  if (!noFacade && baseY <= 0) return 0;
-  return baseY - (noFacade ? TABLET : SLAB);
-}
-
-/** Sección de la grada en (u, y). Pendiente real: u = altura / tan(inclinación). */
+/**
+ * Sección de la grada en (u, y): un tablero escalonado de 0,5 m de grosor que nace en su base.
+ * Pendiente real: u = altura / tan(inclinación). Por debajo queda hueco, como bajo unas escaleras.
+ */
 function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run: number } {
   const h = stand.height;
   const run = h / Math.tan(THREE.MathUtils.degToRad(stand.tilt));
   const rows = rowCount(h);
   const rise = h / rows;
   const tread = run / rows;
-  const bottom = standBottom(stand, baseY);
 
-  const points: THREE.Vector2[] = [v2(0, bottom), v2(0, baseY)];
+  const top: THREE.Vector2[] = [v2(0, baseY)];
   for (let i = 0; i < rows; i++) {
     const y = baseY + (i + 1) * rise;
-    points.push(v2(i * tread, y));
-    points.push(v2((i + 1) * tread, y));
+    top.push(v2(i * tread, y));
+    top.push(v2((i + 1) * tread, y));
   }
-  points.push(v2(run, bottom));
-  return { points, run };
+  // Cara inferior: la superior desplazada hacia abajo el grosor del tablero
+  const under = top.slice().reverse().map((p) => v2(p.x, p.y - TABLET));
+  return { points: [...top, ...under], run };
 }
 
-/** Fachada de una grada: sigue su curva y su altura, a la profundidad elegida desde su borde trasero. */
-function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, top: number) {
+/** Fachada de una grada: arranca en su base, llega a su altura y su grosor es la profundidad elegida. */
+function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, baseY: number, top: number) {
   const f: StandFacade = stand.facade;
   if (f.kind === 'none') return;
-  const outer = run + f.depth;
+  const d = f.depth;
+  const inner = run;
+  const outer = run + d;
   const mat = (color: string) => new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
   if (f.kind === 'pillars') {
-    addColumnsAlong(group, frame, [outer + 0.6], top, concreteMaterial());
+    // Pilares que llegan al suelo, en el borde exterior
+    addColumnsAlong(group, frame, [outer - 0.5], top, concreteMaterial());
     return;
   }
   if (f.kind === 'solid') {
-    group.add(sweepMesh(frame, rectPoints(outer, 0, outer + FACADE_T, top), mat(f.color)));
+    group.add(sweepMesh(frame, rectPoints(inner, baseY, outer, top), mat(f.color)));
     return;
   }
   const n = Math.max(2, Math.round(f.count));
+  const h = top - baseY;
   for (let k = 0; k < n; k++) {
     const color = k % 2 === 0 ? f.color : f.colorB;
     if (f.kind === 'vpanels') {
       const sub = subFrame(frame, k / n, (k + 1) / n);
-      group.add(sweepMesh(sub, rectPoints(outer, 0, outer + FACADE_T, top), mat(color)));
+      group.add(sweepMesh(sub, rectPoints(inner, baseY, outer, top), mat(color)));
     } else {
-      group.add(sweepMesh(frame, rectPoints(outer, (top * k) / n, outer + FACADE_T, (top * (k + 1)) / n), mat(color)));
+      group.add(sweepMesh(frame, rectPoints(inner, baseY + (h * k) / n, outer, baseY + (h * (k + 1)) / n), mat(color)));
     }
   }
 }
@@ -470,12 +470,13 @@ export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, s
   tier.userData.isTier = true;
   group.add(tier);
 
-  const colH = standBottom(stand, baseY);
+  // Pilares: solo bajo el tablero, desde el suelo hasta su cara inferior
+  const colH = baseY - TABLET;
   if (colH > 0 && stand.columns !== 'none') {
     const us: number[] = stand.columns === 'inner' ? [0.8] : [run - 0.8];
     addColumnsAlong(group, frame, us, colH, concreteMaterial());
   }
-  addFacade(group, stand, frame, run, baseY + stand.height);
+  addFacade(group, stand, frame, run, baseY, baseY + stand.height);
   if (stand.railing) {
     const rail = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true, side: THREE.DoubleSide });
     group.add(sweepMesh(frame, rectPoints(-RAIL_THICKNESS, baseY, 0, baseY + RAIL_HEIGHT), rail));
@@ -507,7 +508,7 @@ export function moduleExtent(stands: Stand[], moduleId: ModuleId): ModuleExtent 
   for (const s of list) {
     const rel = isCorner(moduleId) ? cornerExtraOffset(s, stands) : STAND_GAP + s.offset - anchors[moduleId].v;
     const run = s.height / Math.tan(THREE.MathUtils.degToRad(s.tilt));
-    const facadeDepth = s.facade.kind === 'none' ? 0 : s.facade.depth + FACADE_T;
+    const facadeDepth = s.facade.kind === 'none' ? 0 : s.facade.depth;
     back = Math.max(back, rel + run);
     outer = Math.max(outer, rel + run + facadeDepth);
     top = Math.max(top, (bases.get(s.id) ?? 0) + s.height);
@@ -575,26 +576,10 @@ export function buildModuleStructures(
     lamp.userData.roofLight = true;
     lamp.userData.lightColor = '#fff3d1';
     group.add(lamp);
-    // Marcador de marquesina: panel colgado bajo el borde delantero, con marco
-    if (ext.roofScore) {
-      const bu = u0 + 1.2;
-      const bp = surface(tFrame, 0.5, bu);
-      const rot = faceRotation(tFrame.at(0.5).n);
-      const by = yb(0) - 3.1;
-      const frameMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.6, 5.8, 15.6),
-        new THREE.MeshBasicMaterial({ color: 0xe8dcc4 }),
-      );
-      frameMesh.position.set(bp.x, by, bp.z);
-      frameMesh.rotation.y = rot;
-      group.add(frameMesh);
-      const board = new THREE.Mesh(
-        new THREE.BoxGeometry(0.8, 5, 14),
-        new THREE.MeshBasicMaterial({ color: 0x0a2e38 }),
-      );
-      board.position.set(bp.x + tFrame.at(0.5).n.x * 0.2, by, bp.z + tFrame.at(0.5).n.y * 0.2);
-      board.rotation.y = rot;
-      group.add(board);
+    // Marcador de marquesina: pantalla LED azul bajo el borde delantero, a lo ancho de la cubierta
+    if (ext.score === 'marquesina') {
+      const top = yb(u0) - 0.6;
+      group.add(sweepMesh(tFrame, roundedRectPoints(u0, top - 4.5, L, top, 0.9), new THREE.MeshBasicMaterial({ color: LED_BLUE })));
     }
     // Barra de luz: solo con cubierta, en el borde interior, como pieza metálica (no emite)
     if (ext.flood === 'bar') {
@@ -628,7 +613,7 @@ export function buildModuleStructures(
     }
   }
 
-  if (ext.score !== 'none') {
+  if (ext.score === 'marcador' || ext.score === 'pantalla') {
     const u = Math.max(0.5, ex.back - 1.5);
     const w = ext.scoreWidth;
     const boardY = ex.top + ext.scoreHeight;
@@ -668,7 +653,7 @@ function addStairs(group: THREE.Group, frame: Frame, ex: ModuleExtent, count: nu
   const top = ex.top;
   if (top <= 0) return;
   const mat = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true });
-  const u = ex.outer + 2;
+  const u = ex.outer + 0.3;
   const flights = Math.max(1, Math.ceil(top / STAIR_FLIGHT));
   for (let s = 0; s < count; s++) {
     const a0 = s / count + 0.04;
@@ -691,22 +676,26 @@ function addStairs(group: THREE.Group, frame: Frame, ex: ModuleExtent, count: nu
   }
 }
 
-/** Torres circulares adjuntas a la fachada. Con una sola, se elige izquierda, centro o derecha. */
+/** Torres de escaleras adjuntas a la fachada: huecas, gruesas y sin techo. */
 function addCircleTowers(group: THREE.Group, frame: Frame, ext: ModuleExterior, ex: ModuleExtent) {
   const n = ext.circleTowers;
   const h = ext.circleTowerHeight;
-  const body = new THREE.MeshLambertMaterial({ color: ext.circleTowerColor, flatShading: true });
-  const cap = new THREE.MeshLambertMaterial({ color: TOWER, flatShading: true });
+  const wall = new THREE.MeshLambertMaterial({ color: ext.circleTowerColor, flatShading: true, side: THREE.DoubleSide });
   const posT: Record<TowerPos, number> = { left: 0.14, center: 0.5, right: 0.86 };
   const ts = n === 1 ? [posT[ext.circleTowerPos]] : Array.from({ length: n }, (_, k) => (k + 0.5) / n);
+  const WALL = 1.2;
   for (const t of ts) {
     const p = surface(frame, t, ex.outer + TOWER_R);
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(TOWER_R, TOWER_R, h, 20), body);
-    shaft.position.set(p.x, h / 2, p.z);
-    group.add(shaft);
-    const crown = new THREE.Mesh(new THREE.ConeGeometry(TOWER_R + 0.8, 3, 20), cap);
-    crown.position.set(p.x, h + 1.5, p.z);
-    group.add(crown);
+    const outer = new THREE.Mesh(new THREE.CylinderGeometry(TOWER_R, TOWER_R, h, 24, 1, true), wall);
+    outer.position.set(p.x, h / 2, p.z);
+    group.add(outer);
+    const inner = new THREE.Mesh(new THREE.CylinderGeometry(TOWER_R - WALL, TOWER_R - WALL, h, 24, 1, true), wall);
+    inner.position.set(p.x, h / 2, p.z);
+    group.add(inner);
+    const rim = new THREE.Mesh(new THREE.RingGeometry(TOWER_R - WALL, TOWER_R, 24), wall);
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.set(p.x, h, p.z);
+    group.add(rim);
   }
 }
 
@@ -873,6 +862,24 @@ function addRoofDecoration(
     default:
       break;
   }
+}
+
+/** Rectángulo con las cuatro esquinas redondeadas, en el plano (u, y). */
+function roundedRectPoints(u1: number, y1: number, u2: number, y2: number, r: number, seg = 5): THREE.Vector2[] {
+  const corners: [number, number, number][] = [
+    [u2 - r, y2 - r, 0],
+    [u1 + r, y2 - r, Math.PI / 2],
+    [u1 + r, y1 + r, Math.PI],
+    [u2 - r, y1 + r, (3 * Math.PI) / 2],
+  ];
+  const pts: THREE.Vector2[] = [];
+  for (const [cu, cy, a0] of corners) {
+    for (let k = 0; k <= seg; k++) {
+      const a = a0 + (Math.PI / 2) * (k / seg);
+      pts.push(v2(cu + r * Math.cos(a), cy + r * Math.sin(a)));
+    }
+  }
+  return pts;
 }
 
 /** Punto del mundo a una distancia u y una altura y sobre la curva. */

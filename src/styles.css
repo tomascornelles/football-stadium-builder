@@ -514,3 +514,6 @@ body {
 
 /* v0.23.1: sin botón de cierre en móvil; el asa abre y cierra el panel */
 .panel-close { display: none !important; }
+
+/* v0.25.0: botones de aplicar a todo el ancho */
+.apply-row { grid-template-columns: 1fr; }

@@ -16,6 +16,7 @@ import {
 import { buildPitch } from './pitch';
 import { buildEnvironment, buildGridLines } from '../geometry/environment';
 import { cellFromPoint } from '../environment';
+import { ENV_CELL, ENV_HALF } from '../config';
 import { registerCapture } from '../capture';
 
 const VIEW_HALF_H = 110;
@@ -176,6 +177,17 @@ export function StadiumView() {
     gridLines.visible = false;
     let envKey = '';
     world.add(envGroup, gridLines);
+
+    // Celda bajo el ratón en modo entorno
+    const hoverTile = new THREE.Mesh(
+      new THREE.PlaneGeometry(ENV_CELL, ENV_CELL),
+      new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: 0.4, depthWrite: false }),
+    );
+    hoverTile.rotation.x = -Math.PI / 2;
+    hoverTile.position.y = 0.02;
+    hoverTile.visible = false;
+    hoverTile.renderOrder = 10;
+    world.add(hoverTile);
 
     interface StandEntry { group: THREE.Group; key: string }
     interface StructureEntry { group: THREE.Group; key: string }
@@ -401,6 +413,30 @@ export function StadiumView() {
       actions.paintCell(cell.i, cell.j);
     };
 
+    const showHover = (clientX: number, clientY: number) => {
+      if (getState().mode !== 'environment') {
+        hoverTile.visible = false;
+        return;
+      }
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(groundPlane, hit)) {
+        hoverTile.visible = false;
+        return;
+      }
+      const local = world.worldToLocal(hit);
+      const cell = cellFromPoint(local.x, local.z);
+      if (!cell) {
+        hoverTile.visible = false;
+        return;
+      }
+      hoverTile.position.set(-ENV_HALF + (cell.i + 0.5) * ENV_CELL, 0.02, -ENV_HALF + (cell.j + 0.5) * ENV_CELL);
+      hoverTile.visible = true;
+    };
+
     const onDown = (e: PointerEvent) => {
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 1) {
@@ -418,7 +454,10 @@ export function StadiumView() {
     };
 
     const onMove = (e: PointerEvent) => {
-      if (!pointers.has(e.pointerId)) return;
+      if (!pointers.has(e.pointerId)) {
+        showHover(e.clientX, e.clientY);
+        return;
+      }
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (painting && pointers.size === 1) paintAt(e.clientX, e.clientY);
       if (pointers.size === 2) {
@@ -442,6 +481,7 @@ export function StadiumView() {
     };
 
     const onCancel = (e: PointerEvent) => {
+      hoverTile.visible = false;
       pointers.delete(e.pointerId);
       painting = false;
       down = null;

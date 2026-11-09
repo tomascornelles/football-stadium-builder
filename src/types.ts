@@ -49,7 +49,7 @@ export const FACADE_OPTIONS: Option<FacadeKind>[] = [
 /** Fachada de una grada. Su altura es la de la propia grada. */
 export interface StandFacade {
   kind: FacadeKind;
-  /** Distancia desde el borde trasero de la grada hacia fuera (m). 0 = a ras. */
+  /** Grosor de la fachada desde el borde trasero de la grada hacia fuera (m). */
   depth: number;
   color: string;
   /** Segundo color, para paneles alternados. */
@@ -58,11 +58,11 @@ export interface StandFacade {
   count: number;
 }
 
-export const FACADE_RANGES = { depth: [0, 40] as [number, number], count: [2, 30] as [number, number] };
+export const FACADE_RANGES = { depth: [0.5, 40] as [number, number], count: [2, 30] as [number, number] };
 
 export const DEFAULT_FACADE: StandFacade = {
   kind: 'none',
-  depth: 0,
+  depth: 2,
   color: '#9aa3ad',
   colorB: '#e5e7eb',
   count: 8,
@@ -74,7 +74,7 @@ export function legacyFacade(wall: unknown, distance: unknown, color: unknown): 
     concrete: 'solid', glass: 'solid', brick: 'solid', windows: 'hpanels', panels: 'vpanels',
   };
   if (typeof wall !== 'string' || !map[wall]) return null;
-  const depth = typeof distance === 'number' ? Math.min(40, Math.max(0, distance)) : 0;
+  const depth = typeof distance === 'number' ? Math.min(40, Math.max(0.5, distance)) : 2;
   const c = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color) ? color : DEFAULT_FACADE.color;
   return { ...DEFAULT_FACADE, kind: map[wall], depth, color: c };
 }
@@ -121,7 +121,7 @@ export function migrateCurve(raw: { curve?: unknown; curved?: unknown }): CurveT
 
 export type RoofType = 'none' | 'canopy' | 'cantilever' | 'arch';
 export type FloodType = 'none' | 'mast' | 'bar';
-export type ScoreType = 'none' | 'marcador' | 'pantalla';
+export type ScoreType = 'none' | 'marcador' | 'pantalla' | 'marquesina';
 export type DecoType = 'none' | 'pillars' | 'towers' | 'struts' | 'arches';
 export type RoofDecoType = 'none' | 'trusses' | 'masts' | 'lattice';
 export type TowerPos = 'left' | 'center' | 'right';
@@ -164,6 +164,7 @@ export const SCORE_OPTIONS: Option<ScoreType>[] = [
   { value: 'none', label: 'Sin marcador' },
   { value: 'marcador', label: 'Marcador clásico' },
   { value: 'pantalla', label: 'Pantalla LED' },
+  { value: 'marquesina', label: 'Marcador de marquesina' },
 ];
 
 /** Exteriores y detalles de un módulo. La fachada va por grada. */
@@ -182,8 +183,6 @@ export interface ModuleExterior {
   /** Inclinación del voladizo (°). Positivo: el borde exterior sube. Negativo: baja. */
   roofAngle: number;
   roofColumns: boolean;
-  /** Marcador sobre la marquesina. */
-  roofScore: boolean;
   roofColor: string;
 
   flood: FloodType;
@@ -226,7 +225,6 @@ export const DEFAULT_EXTERIOR: ModuleExterior = {
   roofSlope: 12,
   roofAngle: 0,
   roofColumns: false,
-  roofScore: false,
   roofColor: '#e5e7eb',
 
   flood: 'none',
