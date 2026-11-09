@@ -3,12 +3,11 @@ import { BUILDING_HEIGHT, BuildingKind, EnvCell } from '../types';
 import { ENV_CELL, ENV_HALF, ENV_N, ENV_SIZE } from '../config';
 import { cellKey } from '../environment';
 
-const ROAD_W = 12;
-const PATH_W = 6;
-const SIDEWALK = 1.5;
 const HALF = ENV_CELL / 2;
-const ROUND_ISLAND = 9;
-const ROUND_OUTER = 21;
+const WIDTH = { road: 12, avenue: 17, path: 6 } as const;
+const SIDEWALK = 1.5;
+const RING_IN = 14;
+const RING_OUT = 26;
 
 const COLORS = {
   grass: 0x4f9d4f,
@@ -21,12 +20,15 @@ const COLORS = {
   crown: 0x4b5563,
   trunk: 0x6b4f2a,
   crownTree: 0x2f855a,
+  water: 0x1f7a8c,
+  sand: 0xd9c9a0,
+  glassBand: 0xdbe9ec,
 };
 const CAR_COLORS = ['#e11d48', '#2563eb', '#f5f5f4', '#facc15', '#16a34a', '#7c3aed'];
 const LIGHT_COLORS = [0xef4444, 0xfacc15, 0x22c55e];
 
 /** Capas de superficie, de abajo arriba. */
-const Y = { grass: -0.03, sidewalk: -0.024, road: -0.022, path: -0.0215, line: -0.021, island: -0.0205 };
+const Y = { grass: -0.03, sand: -0.026, water: -0.0255, sidewalk: -0.024, road: -0.022, path: -0.0215, line: -0.021, island: -0.0205 };
 
 const DIRS: [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
@@ -37,19 +39,30 @@ const seeded = (n: number) => {
 };
 
 const cellCenter = (i: number) => -ENV_HALF + (i + 0.5) * ENV_CELL;
+const isVia = (t: string | undefined) => t === 'road' || t === 'avenue';
+const isSurface = (t: string | undefined) => isVia(t) || t === 'path';
 
-/** Acumula polígonos convexos en una sola geometría por capa. */
+/** Acumula polígonos en una sola geometría por capa. */
 class PolyBuffer {
   private pos: number[] = [];
   constructor(private y: number) {}
 
+  /** Polígono convexo (abanico). */
   polygon(pts: [number, number][]) {
     for (let k = 1; k < pts.length - 1; k++) {
       for (const [x, z] of [pts[0], pts[k], pts[k + 1]]) this.pos.push(x, this.y, z);
     }
   }
 
-  /** Brazo rectangular desde el centro (cx, cz) en la dirección (dx, dz). */
+  /** Polígono cualquiera (puede ser cóncavo). */
+  polygonAny(pts: [number, number][]) {
+    const tris = THREE.ShapeUtils.triangulateShape(pts.map(([x, z]) => new THREE.Vector2(x, z)), []);
+    for (const [a, b, c] of tris) {
+      for (const k of [a, b, c]) this.pos.push(pts[k][0], this.y, pts[k][1]);
+    }
+  }
+
+  /** Brazo rectangular desde (cx, cz) en la dirección (dx, dz). */
   arm(cx: number, cz: number, dx: number, dz: number, from: number, to: number, w: number) {
     const px = -dz * (w / 2);
     const pz = dx * (w / 2);
@@ -69,7 +82,7 @@ class PolyBuffer {
     this.polygon(pts);
   }
 
-  /** Corona circular entre r0 y r1 (glorieta). */
+  /** Corona circular entre r0 y r1. */
   ring(cx: number, cz: number, r0: number, r1: number, seg = 36) {
     for (let k = 0; k < seg; k++) {
       const a0 = (k / seg) * Math.PI * 2;
@@ -88,21 +101,94 @@ class PolyBuffer {
   }
 }
 
+/** Acumula cajas alineadas con los ejes en una sola geometría. */
+class BoxBuffer {
+  private pos: number[] = [];
+
+  add(cx: number, cy: number, cz: number, sx: number, sy: number, sz: number) {
+    const x0 = cx - sx / 2, x1 = cx + sx / 2;
+    const y0 = cy - sy / 2, y1 = cy + sy / 2;
+    const z0 = cz - sz / 2, z1 = cz + sz / 2;
+    const faces = [
+      [[x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]],
+      [[x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0]],
+      [[x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0]],
+      [[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1]],
+      [[x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0]],
+      [[x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]],
+    ];
+    for (const f of faces) {
+      for (const tri of [[0, 1, 2], [0, 2, 3]]) {
+        for (const k of tri) this.pos.push(f[k][0], f[k][1], f[k][2]);
+      }
+    }
+  }
+
+  geometry(): THREE.BufferGeometry | null {
+    if (this.pos.length === 0) return null;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
+    geo.computeVertexNormals();
+    return geo;
+  }
+}
+
 function surfaceMesh(geo: THREE.BufferGeometry | null, color: number): THREE.Mesh | null {
   if (!geo) return null;
   return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide }));
 }
 
-function isRoad(env: Record<string, EnvCell>, i: number, j: number) {
-  return env[cellKey(i, j)]?.type === 'road';
+const at = (env: Record<string, EnvCell>, i: number, j: number) => env[cellKey(i, j)]?.type;
+
+/* ---------- Agua con orillas irregulares ---------- */
+
+const CORNERS: [number, number][] = [[-HALF, -HALF], [HALF, -HALF], [HALF, HALF], [-HALF, HALF]];
+
+/** Contorno de una celda: cada lado se desplaza hacia fuera (positivo) o dentro (negativo). */
+function outline(cx: number, cz: number, offset: (side: number) => number): [number, number][] {
+  const pts: [number, number][] = [];
+  for (let s = 0; s < 4; s++) {
+    const a = CORNERS[s];
+    const b = CORNERS[(s + 1) % 4];
+    const [dx, dz] = DIRS[s];
+    for (let k = 0; k < 4; k++) {
+      const t = k / 4;
+      const bump = Math.sin(Math.PI * t);
+      const o = offset(s) * bump;
+      pts.push([cx + a[0] + (b[0] - a[0]) * t + dx * o, cz + a[1] + (b[1] - a[1]) * t + dz * o]);
+    }
+  }
+  return pts;
 }
 
-function isSurface(env: Record<string, EnvCell>, i: number, j: number) {
-  const t = env[cellKey(i, j)]?.type;
-  return t === 'road' || t === 'path';
+/** Agua: cada celda de agua con orillas irregulares y una franja de arena en los lados de tierra. */
+function buildWater(env: Record<string, EnvCell>): THREE.Group {
+  const group = new THREE.Group();
+  const water = new PolyBuffer(Y.water);
+  const sand = new PolyBuffer(Y.sand);
+
+  for (const [key, cell] of Object.entries(env)) {
+    if (cell.type !== 'water') continue;
+    const [i, j] = key.split(',').map(Number);
+    const cx = cellCenter(i);
+    const cz = cellCenter(j);
+    const wet = (s: number) => at(env, i + DIRS[s][0], j + DIRS[s][1]) === 'water';
+
+    // Agua: los lados con agua vecina llegan al borde; los de tierra quedan con orilla irregular
+    water.polygonAny(outline(cx, cz, (s) => (wet(s) ? 0 : -(1.5 + 2.5 * seeded(i * 7.3 + j * 3.1 + s)))));
+    // Arena: se extiende sobre la tierra vecina, en los lados sin agua
+    sand.polygonAny(outline(cx, cz, (s) => (wet(s) ? 0 : 2.5 + 2 * seeded(i * 5.9 + j * 8.3 + s * 2))));
+  }
+
+  const add = (mesh: THREE.Mesh | null) => { if (mesh) group.add(mesh); };
+  add(surfaceMesh(sand.geometry(), COLORS.sand));
+  add(surfaceMesh(water.geometry(), COLORS.water));
+  return group;
 }
 
-/** Carreteras y caminos unidos. Cruces con semáforo; bloques de 3 × 3 son glorietas. */
+/* ---------- Carreteras, avenidas, caminos, glorietas y aparcamientos ---------- */
+
+/** Semáforo y farolas se colocan en las vías; los coches circulan por los brazos. */
 function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
   const group = new THREE.Group();
   const sidewalk = new PolyBuffer(Y.sidewalk);
@@ -113,107 +199,131 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
   const cars: THREE.Mesh[] = [];
   const lights: { x: number; z: number; color: number }[] = [];
   const lamps: [number, number][] = [];
+  const via = (i: number, j: number) => isVia(at(env, i, j));
+  const surf = (i: number, j: number) => isSurface(at(env, i, j));
 
-  // Glorietas: un bloque de 3 × 3 carreteras, con su centro como isla
-  const roundCenters = new Set<string>();
-  const inRound = new Set<string>();
+  // Bloques de 3 × 3 vías son aparcamiento; las vías interiores (cuatro vecinos) también
+  const parking = new Set<string>();
   for (const [key, cell] of Object.entries(env)) {
-    if (cell.type !== 'road') continue;
+    if (!isVia(cell.type)) continue;
     const [i, j] = key.split(',').map(Number);
-    let all = true;
+    let full3 = true;
     for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
-      if (!isRoad(env, i + di, j + dj)) all = false;
+      if (!via(i + di, j + dj)) full3 = false;
     }
-    if (!all) continue;
-    roundCenters.add(key);
-    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) inRound.add(cellKey(i + di, j + dj));
+    if (full3) for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) parking.add(cellKey(i + di, j + dj));
+    if (via(i + 1, j) && via(i - 1, j) && via(i, j + 1) && via(i, j - 1)) parking.add(key);
+  }
+
+  // Glorietas: anillo de 8 vías alrededor de una celda central libre
+  const inRound = new Set<string>();
+  const roundCenters = new Set<string>();
+  for (const [key, cell] of Object.entries(env)) {
+    if (!isVia(cell.type)) continue;
+    const [i, j] = key.split(',').map(Number);
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+      if (di === 0 && dj === 0) continue;
+      const ci = i + di;
+      const cj = j + dj;
+      if (via(ci, cj)) continue;
+      let ring = true;
+      for (let ei = -1; ei <= 1; ei++) for (let ej = -1; ej <= 1; ej++) {
+        if ((ei !== 0 || ej !== 0) && !via(ci + ei, cj + ej)) ring = false;
+      }
+      if (!ring) continue;
+      roundCenters.add(cellKey(ci, cj));
+      for (let ei = -1; ei <= 1; ei++) for (let ej = -1; ej <= 1; ej++) {
+        if (ei !== 0 || ej !== 0) inRound.add(cellKey(ci + ei, cj + ej));
+      }
+    }
   }
 
   for (const [key, cell] of Object.entries(env)) {
-    if (cell.type !== 'road' && cell.type !== 'path') continue;
+    if (!isSurface(cell.type)) continue;
     const [i, j] = key.split(',').map(Number);
     const cx = cellCenter(i);
     const cz = cellCenter(j);
-
-    const arms = DIRS.filter(([dx, dz]) => isSurface(env, i + dx, j + dz));
+    if (inRound.has(key)) continue;
 
     if (cell.type === 'path') {
-      path.disc(cx, cz, PATH_W / 2);
-      for (const [dx, dz] of arms) path.arm(cx, cz, dx, dz, 0, HALF, PATH_W);
+      path.disc(cx, cz, WIDTH.path / 2);
+      for (const [dx, dz] of DIRS) if (surf(i + dx, j + dz)) path.arm(cx, cz, dx, dz, 0, HALF, WIDTH.path);
       continue;
     }
 
-    // Las celdas interiores de una glorieta no tienen asfalto propio: es un anillo circular
-    if (inRound.has(key) && !roundCenters.has(key)) continue;
-
-    if (roundCenters.has(key)) {
-      sidewalk.ring(cx, cz, ROUND_ISLAND - 1, ROUND_OUTER + SIDEWALK + 1.5);
-      road.ring(cx, cz, ROUND_ISLAND, ROUND_OUTER);
-      island.disc(cx, cz, ROUND_ISLAND);
-
-      // Carril discontinuo circular, en el centro del anillo
-      const seg = 48;
-      const laneR = (ROUND_ISLAND + ROUND_OUTER) / 2;
-      for (let k = 0; k < seg; k += 2) {
-        const a0 = (k / seg) * Math.PI * 2;
-        const a1 = ((k + 1) / seg) * Math.PI * 2;
-        const at = (a: number, r: number): [number, number] => [cx + Math.cos(a) * r, cz + Math.sin(a) * r];
-        lines.polygon([at(a0, laneR - 0.2), at(a1, laneR - 0.2), at(a1, laneR + 0.2), at(a0, laneR + 0.2)]);
-      }
-
-      // Farolas alrededor de la glorieta
-      for (let k = 0; k < 8; k++) {
-        const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
-        lamps.push([cx + Math.cos(a) * 25, cz + Math.sin(a) * 25]);
-      }
-
-      // Accesos: carreteras que llegan a la glorieta por el centro de cada lado
-      for (const [dx, dz] of DIRS) {
-        if (!isRoad(env, i + 2 * dx, j + 2 * dz)) continue;
-        sidewalk.arm(cx, cz, dx, dz, ROUND_OUTER - 4, 31, ROAD_W + 2 * SIDEWALK);
-        road.arm(cx, cz, dx, dz, ROUND_ISLAND, 31, ROAD_W);
-      }
+    if (parking.has(key)) {
+      road.polygon([[cx - HALF, cz - HALF], [cx + HALF, cz - HALF], [cx + HALF, cz + HALF], [cx - HALF, cz + HALF]]);
+      for (let k = -4; k <= 4; k++) lines.arm(cx + k * 2.5, cz - 8.5, 0, 1, 0, 17, 0.25);
       continue;
     }
 
-    const roadArms = DIRS.filter(([dx, dz]) => isRoad(env, i + dx, j + dz));
-    const block = inRound.has(key);
+    const W = WIDTH[cell.type as 'road' | 'avenue'];
+    const surfArms = DIRS.filter(([dx, dz]) => surf(i + dx, j + dz));
+    const viaArms = DIRS.filter(([dx, dz]) => via(i + dx, j + dz));
 
-    sidewalk.disc(cx, cz, ROAD_W / 2 + SIDEWALK);
-    for (const [dx, dz] of roadArms) sidewalk.arm(cx, cz, dx, dz, 0, HALF, ROAD_W + 2 * SIDEWALK);
+    sidewalk.disc(cx, cz, W / 2 + SIDEWALK);
+    for (const [dx, dz] of viaArms) sidewalk.arm(cx, cz, dx, dz, 0, HALF, W + 2 * SIDEWALK);
 
-    road.disc(cx, cz, ROAD_W / 2);
-    for (const [dx, dz] of arms) road.arm(cx, cz, dx, dz, 0, HALF, ROAD_W);
+    road.disc(cx, cz, W / 2);
+    for (const [dx, dz] of surfArms) road.arm(cx, cz, dx, dz, 0, HALF, W);
 
-    // Línea central discontinua (no dentro de glorietas)
-    if (!block) {
-      for (const [dx, dz] of roadArms) lines.arm(cx, cz, dx, dz, ROAD_W / 2 + 0.5, ROAD_W / 2 + 3.5, 0.3);
+    for (const [dx, dz] of viaArms) {
+      if (cell.type === 'avenue') {
+        // Avenida: dos líneas discontinuas y mediana central con la vía vecina
+        const px = -dz;
+        const pz = dx;
+        for (const s of [-3.5, 3.5]) lines.arm(cx + px * s, cz + pz * s, dx, dz, 6.5, 9.5, 0.3);
+        if (at(env, i + dx, j + dz) === 'avenue') island.arm(cx, cz, dx, dz, 0, HALF, 3);
+      } else {
+        lines.arm(cx, cz, dx, dz, 6.5, 9.5, 0.3);
+      }
     }
 
-    // Coche por el carril derecho de uno de los brazos
-    if (roadArms.length > 0 && !block && seeded(i * 91.3 + j * 47.9) < 0.45) {
-      const [dx, dz] = roadArms[Math.floor(seeded(i * 13.7 + j * 29.1) * roadArms.length)];
-      const x = cx + dx * 8 - dz * 2.6;
-      const z = cz + dz * 8 + dx * 2.6;
+    if (viaArms.length > 0 && seeded(i * 91.3 + j * 47.9) < 0.45) {
+      const [dx, dz] = viaArms[Math.floor(seeded(i * 13.7 + j * 29.1) * viaArms.length)];
+      const lane = cell.type === 'avenue' ? 4 : 2.6;
       const car = new THREE.Mesh(
         new THREE.BoxGeometry(4, 1.2, 2),
         new THREE.MeshLambertMaterial({ color: CAR_COLORS[Math.floor(seeded(i * 7.1 + j * 3.3) * CAR_COLORS.length)], flatShading: true }),
       );
-      car.position.set(x, 0.6, z);
+      car.position.set(cx + dx * 8 - dz * lane, 0.6, cz + dz * 8 + dx * lane);
       car.rotation.y = Math.atan2(-dz, dx);
       cars.push(car);
     }
 
-    // Farola en el borde de cada calle
-    if (!block) lamps.push([cx - 7.5, cz + 7.5]);
+    if (surfArms.length >= 3) {
+      lights.push({ x: cx + 7, z: cz - 7, color: LIGHT_COLORS[Math.floor(seeded(i * 5.3 + j * 2.9) * LIGHT_COLORS.length)] });
+    }
+    lamps.push([cx - 7.5, cz + 7.5]);
+  }
 
-    // Semáforo en los cruces de tres o cuatro brazos
-    if (!block && arms.length >= 3) {
-      lights.push({
-        x: cx + 7,
-        z: cz - 7,
-        color: LIGHT_COLORS[Math.floor(seeded(i * 5.3 + j * 2.9) * LIGHT_COLORS.length)],
-      });
+  // Glorietas: anillo circular con isla, carril discontinuo, accesos y farolas
+  for (const key of roundCenters) {
+    const [ci, cj] = key.split(',').map(Number);
+    const cx = cellCenter(ci);
+    const cz = cellCenter(cj);
+    sidewalk.ring(cx, cz, RING_IN - 1.5, RING_OUT + SIDEWALK);
+    road.ring(cx, cz, RING_IN, RING_OUT);
+    island.disc(cx, cz, RING_IN);
+
+    const seg = 48;
+    const laneR = (RING_IN + RING_OUT) / 2;
+    for (let k = 0; k < seg; k += 2) {
+      const a0 = (k / seg) * Math.PI * 2;
+      const a1 = ((k + 1) / seg) * Math.PI * 2;
+      const pt = (a: number, r: number): [number, number] => [cx + Math.cos(a) * r, cz + Math.sin(a) * r];
+      lines.polygon([pt(a0, laneR - 0.2), pt(a1, laneR - 0.2), pt(a1, laneR + 0.2), pt(a0, laneR + 0.2)]);
+    }
+
+    for (const [dx, dz] of DIRS) {
+      if (!via(ci + 2 * dx, cj + 2 * dz)) continue;
+      sidewalk.arm(cx, cz, dx, dz, RING_OUT - 6, 31, WIDTH.road + 2 * SIDEWALK);
+      road.arm(cx, cz, dx, dz, RING_OUT - 6, 31, WIDTH.road);
+    }
+
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
+      lamps.push([cx + Math.cos(a) * 30, cz + Math.sin(a) * 30]);
     }
   }
 
@@ -224,6 +334,19 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
   add(surfaceMesh(lines.geometry(), COLORS.line));
   add(surfaceMesh(island.geometry(), COLORS.grass));
   cars.forEach((c) => group.add(c));
+
+  const steel = new THREE.MeshLambertMaterial({ color: COLORS.steel, flatShading: true });
+  for (const l of lights) {
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.35, 4.5, 0.35), steel);
+    pole.position.set(l.x, 2.25, l.z);
+    group.add(pole);
+    const housing = new THREE.Mesh(new THREE.BoxGeometry(1, 2.4, 1), new THREE.MeshBasicMaterial({ color: 0x111827 }));
+    housing.position.set(l.x, 4.6, l.z);
+    group.add(housing);
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.1), new THREE.MeshBasicMaterial({ color: l.color }));
+    lamp.position.set(l.x, 4.6, l.z + 0.55);
+    group.add(lamp);
+  }
 
   if (night) {
     const poleMat = new THREE.MeshLambertMaterial({ color: COLORS.steel, flatShading: true });
@@ -243,24 +366,13 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
       group.add(glow);
     }
   }
-
-  const steel = new THREE.MeshLambertMaterial({ color: COLORS.steel, flatShading: true });
-  for (const l of lights) {
-    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.35, 4.5, 0.35), steel);
-    pole.position.set(l.x, 2.25, l.z);
-    group.add(pole);
-    const housing = new THREE.Mesh(new THREE.BoxGeometry(1, 2.4, 1), new THREE.MeshBasicMaterial({ color: 0x111827 }));
-    housing.position.set(l.x, 4.6, l.z);
-    group.add(housing);
-    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.1), new THREE.MeshBasicMaterial({ color: l.color }));
-    lamp.position.set(l.x, 4.6, l.z + 0.55);
-    group.add(lamp);
-  }
   return group;
 }
 
-/** Edificio: casa con tejado a cuatro aguas, edificio de bloque o torre con remate. */
-function buildBuilding(group: THREE.Group, cx: number, cz: number, kind: BuildingKind, h: number, color: string) {
+/* ---------- Edificios ---------- */
+
+/** Edificio: casa con tejado, bloque de oficinas o torre acristalada con forjados. */
+function buildBuilding(group: THREE.Group, cx: number, cz: number, kind: BuildingKind, h: number, color: string, bands: BoxBuffer) {
   const mat = new THREE.MeshLambertMaterial({ color, flatShading: true });
   if (kind === 'house') {
     const body = new THREE.Mesh(new THREE.BoxGeometry(14, h, 14), mat);
@@ -274,14 +386,16 @@ function buildBuilding(group: THREE.Group, cx: number, cz: number, kind: Buildin
     roof.position.set(cx, h + 2.5, cz);
     group.add(roof);
   } else if (kind === 'tower') {
-    const body = new THREE.Mesh(new THREE.BoxGeometry(8, h, 8), mat);
+    // Torre de oficinas: fuste alto con forjados claros cada 4 m y remate
+    const body = new THREE.Mesh(new THREE.BoxGeometry(12, h, 12), mat);
     body.position.set(cx, h / 2, cz);
     group.add(body);
+    for (let y = 4; y < h - 1; y += 4) bands.add(cx, y, cz, 12.6, 0.5, 12.6);
     const crown = new THREE.Mesh(
-      new THREE.BoxGeometry(10, 3, 10),
+      new THREE.BoxGeometry(10, 2, 10),
       new THREE.MeshLambertMaterial({ color: COLORS.crown, flatShading: true }),
     );
-    crown.position.set(cx, h + 1.5, cz);
+    crown.position.set(cx, h + 1, cz);
     group.add(crown);
   } else {
     const body = new THREE.Mesh(new THREE.BoxGeometry(16, h, 16), mat);
@@ -323,7 +437,7 @@ function windowsMesh(env: Record<string, EnvCell>): THREE.Mesh | null {
     const [i, j] = key.split(',').map(Number);
     const kind = cell.kind ?? 'building';
     const h = cell.height ?? BUILDING_HEIGHT[kind];
-    const s = kind === 'house' ? 7 : kind === 'tower' ? 4 : 8;
+    const s = kind === 'house' ? 7 : kind === 'tower' ? 6 : 8;
     const cx = cellCenter(i);
     const cz = cellCenter(j);
     const cols = Math.max(2, Math.floor((2 * s - 2) / 3));
@@ -355,7 +469,7 @@ function windowsMesh(env: Record<string, EnvCell>): THREE.Mesh | null {
   return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffd98a, side: THREE.DoubleSide }));
 }
 
-/** Entorno: césped de parque por defecto, carreteras, caminos, árboles y edificios. De noche, con luces. */
+/** Entorno: césped de parque por defecto, agua, vías, árboles, edificios. De noche, con luces. */
 export function buildEnvironment(env: Record<string, EnvCell>, night = false): THREE.Group {
   const group = new THREE.Group();
 
@@ -366,19 +480,21 @@ export function buildEnvironment(env: Record<string, EnvCell>, night = false): T
   grass.rotation.x = -Math.PI / 2;
   grass.position.y = Y.grass;
   group.add(grass);
+  group.add(buildWater(env));
 
   const trunkMat = new THREE.MeshLambertMaterial({ color: COLORS.trunk, flatShading: true });
   const crownMat = new THREE.MeshLambertMaterial({ color: COLORS.crownTree, flatShading: true });
+  const bands = new BoxBuffer();
 
   for (const [key, cell] of Object.entries(env)) {
-    if (cell.type === 'road' || cell.type === 'path') continue;
+    if (cell.type === 'road' || cell.type === 'avenue' || cell.type === 'path' || cell.type === 'water') continue;
     const [i, j] = key.split(',').map(Number);
     const cx = cellCenter(i);
     const cz = cellCenter(j);
 
     if (cell.type === 'building') {
       const kind = cell.kind ?? 'building';
-      buildBuilding(group, cx, cz, kind, cell.height ?? BUILDING_HEIGHT[kind], cell.color ?? '#d6d3cd');
+      buildBuilding(group, cx, cz, kind, cell.height ?? BUILDING_HEIGHT[kind], cell.color ?? '#d6d3cd', bands);
       continue;
     }
 
@@ -397,6 +513,9 @@ export function buildEnvironment(env: Record<string, EnvCell>, night = false): T
       }
     }
   }
+
+  const bandMesh = surfaceMesh(bands.geometry(), COLORS.glassBand);
+  if (bandMesh) group.add(bandMesh);
 
   group.add(buildRoads(env, night));
   if (night) {

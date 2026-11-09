@@ -1,3 +1,4 @@
+import { ColorPicker } from './ColorPicker';
 import { useState } from 'react';
 import { actions, getState } from '../store';
 import { CORNER_TEMPLATE_LABEL, computeAnchors, cornerTemplateOf } from '../geometry/modules';
@@ -53,10 +54,10 @@ export function StandEditor({ stand }: { stand: Stand }) {
 
       <label className="field-row inline">
         <span>Color</span>
-        <input
-          type="color"
+        <ColorPicker
+          
           value={stand.color}
-          onChange={(e) => actions.updateStand(stand.id, { color: e.target.value })}
+          onChange={(v) => actions.updateStand(stand.id, { color: v })}
         />
       </label>
 

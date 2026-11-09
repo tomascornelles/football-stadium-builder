@@ -75,11 +75,16 @@ export function StadiumView() {
     floodTarget.position.set(0, 0, 0);
     scene.add(floodTarget);
     const floodLights: THREE.SpotLight[] = [];
+    const roofLights: THREE.SpotLight[] = [];
     for (let k = 0; k < FLOOD_LIGHTS; k++) {
       const l = new THREE.SpotLight(0xfff1c1, 0, 170, 0.9, 0.5, 2);
       l.target = floodTarget;
       scene.add(l);
       floodLights.push(l);
+      const r = new THREE.SpotLight(0xfff3d1, 0, 170, 1.0, 0.6, 2);
+      r.target = floodTarget;
+      scene.add(r);
+      roofLights.push(r);
     }
 
     // Proyecta y recibe sombras en todo el objeto
@@ -94,26 +99,35 @@ export function StadiumView() {
     };
 
     let lastNight: boolean | null = null;
+    let lastTopView: boolean | null = null;
 
     const headPos = new THREE.Vector3();
-    /** Coloca las luces de los focos sobre sus cabezales y las apaga de día. */
-    const updateFloodLights = (night: boolean) => {
-      const heads: THREE.Object3D[] = [];
+    /** Coloca cada luz de un grupo sobre su marcador (cabezal de foco o fanal de marquesina). */
+    const updatePool = (pool: THREE.SpotLight[], marker: string, night: boolean, intensity: number) => {
+      const found: THREE.Object3D[] = [];
       structureGroup.traverse((o) => {
-        if (o.userData.floodHead) heads.push(o);
+        if (o.userData[marker]) {
+          found.push(o);
+          // La luz de marquesina solo se ve de noche
+          if (marker === 'roofLight') o.visible = night;
+        }
       });
-      scene.updateMatrixWorld(true);
-      floodLights.forEach((l, k) => {
-        const h = heads[k];
+      pool.forEach((l, k) => {
+        const h = found[k];
         if (night && h) {
           h.getWorldPosition(headPos);
           l.position.copy(headPos);
           l.color.set(h.userData.lightColor as string);
-          l.intensity = 1800;
+          l.intensity = intensity;
         } else {
           l.intensity = 0;
         }
       });
+    };
+    const updateFloodLights = (night: boolean) => {
+      scene.updateMatrixWorld(true);
+      updatePool(floodLights, 'floodHead', night, 3600);
+      updatePool(roofLights, 'roofLight', night, 1800);
     };
     const applyLighting = (night: boolean) => {
       if (night) {
@@ -246,19 +260,28 @@ export function StadiumView() {
         }
       }
 
+      // Anchura común de las fachadas: la del borde más alejado del estadio
+      const extentsAll = {} as Record<ModuleId, ReturnType<typeof moduleExtent>>;
+      for (const id of MODULE_IDS) extentsAll[id] = moduleExtent(st.stands, id);
+      let ringBack = 10;
+      for (const id of MODULE_IDS) {
+        const e = extentsAll[id];
+        if (e && e.back > ringBack) ringBack = e.back;
+      }
+
       // Exteriores por módulo
       for (const id of MODULE_IDS) {
         const ext = st.exteriors[id];
         const extent = moduleExtent(st.stands, id);
         const tallest = tallestStand(st.stands, id, anchors);
-        const key = JSON.stringify([ext, extent, anchorKey, tallest]);
+        const key = JSON.stringify([ext, extent, anchorKey, tallest, ringBack]);
         const current = structures.get(id);
         if (!current || current.key !== key) {
           if (current) {
             structureGroup.remove(current.group);
             disposeGroup(current.group);
           }
-          const group = buildModuleStructures(id, ext, extent, anchors, tallest);
+          const group = buildModuleStructures(id, ext, extent, anchors, tallest, ringBack);
           shadowsOn(group);
           structureGroup.add(group);
           structures.set(id, { group, key });
@@ -273,12 +296,24 @@ export function StadiumView() {
         junctionKey = jKey;
         disposeGroup(junctionGroup);
         junctionGroup.clear();
-        const jg = buildJunctions(st.exteriors, extents, anchors);
+        const jg = buildJunctions(st.exteriors, extents, anchors, ringBack);
         shadowsOn(jg);
         junctionGroup.add(jg);
       }
 
       // Entorno: cuadrícula y celdas pintadas
+      const topView = st.view === 'top';
+      if (topView !== lastTopView) {
+        lastTopView = topView;
+        if (topView) {
+          camera.up.set(0, 0, -1);
+          camera.position.set(0, 300, 0.001);
+        } else {
+          camera.up.set(0, 1, 0);
+          camera.position.set(200, 200, 200);
+        }
+        camera.lookAt(0, 0, 0);
+      }
       const night = st.lighting === 'night';
       if (night !== lastNight) {
         lastNight = night;

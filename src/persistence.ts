@@ -108,6 +108,7 @@ function toExterior(raw: any): ModuleExterior {
     roofColor: isColor(ext.roofColor) ? ext.roofColor : DEFAULT_EXTERIOR.roofColor,
     floodColor: isColor(ext.floodColor) ? ext.floodColor : DEFAULT_EXTERIOR.floodColor,
     roofColumns: ext.roofColumns === true,
+    roofScore: ext.roofScore === true,
   };
 }
 

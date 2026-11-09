@@ -1,5 +1,5 @@
 /** Versión de la aplicación (SemVer). */
-export const APP_VERSION = '0.20.2';
+export const APP_VERSION = '0.23.1';
 
 /** Dimensiones fijas del campo en metros (1 unidad = 1 m). */
 export const PITCH_LENGTH = 105;
@@ -20,7 +20,7 @@ export const LIMITS = {
 
 export const STORAGE_KEY = 'football-stadium-builder:v1';
 
-export const PALETTE = ['#2f6fdb', '#e0472f', '#f2b233', '#2fb37a', '#8e5bd6', '#e5e7eb'];
+export const PALETTE = ['#0F4C5C', '#FF5E4D', '#E8DCC4', '#1F7A8C', '#F2A65A', '#2B3A42'];
 
 /** Cuadrícula del entorno: 400 × 400 m con celdas de 20 m. */
 export const ENV_SIZE = 400;

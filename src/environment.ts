@@ -1,7 +1,7 @@
 import { BUILDING_HEIGHT, BuildingKind, CellType, EnvCell } from './types';
 import { ENV_CELL, ENV_HALF, ENV_N } from './config';
 
-export const CELL_TYPES: CellType[] = ['road', 'path', 'park', 'building'];
+export const CELL_TYPES: CellType[] = ['road', 'avenue', 'path', 'park', 'building', 'water'];
 const KINDS: BuildingKind[] = ['house', 'building', 'tower'];
 
 export const cellKey = (i: number, j: number) => `${i},${j}`;

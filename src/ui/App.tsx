@@ -125,7 +125,6 @@ export function App() {
 
       <main className="stage glass">
         <StadiumView />
-        {inEnv && <p className="stage-hint">Pinta sobre la cuadrícula. Arrastra para dibujar.</p>}
         <div className="segmented lighting-seg" role="tablist" aria-label="Iluminación">
           <button
             role="tab"
@@ -147,6 +146,17 @@ export function App() {
         <div className="rotate-controls">
           <button className="round-btn" aria-label="Girar a la izquierda" onClick={() => actions.rotate(1)}>
             <RotateIcon dir="left" />
+          </button>
+          <button
+            className={`round-btn ${state.view === 'top' ? 'active' : ''}`}
+            aria-label={state.view === 'top' ? 'Volver a la vista isométrica' : 'Vista cenital'}
+            title={state.view === 'top' ? 'Vista isométrica' : 'Vista cenital'}
+            onClick={() => actions.setView(state.view === 'top' ? 'iso' : 'top')}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <path d="M4 12h16M12 4v16" />
+            </svg>
           </button>
           <button className="round-btn" aria-label="Girar a la derecha" onClick={() => actions.rotate(-1)}>
             <RotateIcon dir="right" />

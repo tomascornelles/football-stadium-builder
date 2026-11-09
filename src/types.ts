@@ -127,6 +127,8 @@ export interface ModuleExterior {
   /** Inclinación (voladizo) o flecha (cubierta curva), en grados. */
   roofSlope: number;
   roofColumns: boolean;
+  /** Marcador sobre la marquesina. */
+  roofScore: boolean;
   roofColor: string;
 
   flood: FloodType;
@@ -165,6 +167,7 @@ export const DEFAULT_EXTERIOR: ModuleExterior = {
   roofThickness: 1,
   roofSlope: 12,
   roofColumns: false,
+  roofScore: false,
   roofColor: '#e5e7eb',
 
   flood: 'none',
@@ -211,13 +214,21 @@ export const EXTERIOR_RANGES: Partial<Record<keyof ModuleExterior, [number, numb
 
 /* ---------- Entorno ---------- */
 
-export type CellType = 'road' | 'path' | 'park' | 'building';
-export type EnvTool = 'road' | 'path' | 'tree' | 'building' | 'erase';
+export type CellType = 'road' | 'avenue' | 'path' | 'park' | 'building' | 'water';
+export type RoadKind = 'road' | 'avenue' | 'path';
+
+export const ROAD_OPTIONS: Option<RoadKind>[] = [
+  { value: 'road', label: 'Carretera' },
+  { value: 'avenue', label: 'Avenida' },
+  { value: 'path', label: 'Camino' },
+];
+export type EnvTool = 'road' | 'tree' | 'building' | 'water' | 'erase';
 export type BuildingKind = 'house' | 'building' | 'tower';
 
-export const BUILDING_HEIGHT: Record<BuildingKind, number> = { house: 7, building: 24, tower: 50 };
+export const BUILDING_HEIGHT: Record<BuildingKind, number> = { house: 7, building: 24, tower: 75 };
 export type AppMode = 'stadium' | 'environment';
 export type Lighting = 'day' | 'night';
+export type CameraView = 'iso' | 'top';
 
 /** Celda ocupada de la cuadrícula. Las celdas vacías no aparecen en el mapa. */
 export interface EnvCell {
@@ -232,10 +243,10 @@ export interface EnvCell {
 }
 
 export const ENV_TOOLS: { value: EnvTool; label: string; color: string }[] = [
-  { value: 'road', label: 'Carretera', color: '#4b5563' },
-  { value: 'path', label: 'Camino', color: '#d6c7a1' },
+  { value: 'road', label: 'Vía', color: '#4b5563' },
   { value: 'tree', label: 'Árboles', color: '#2f855a' },
   { value: 'building', label: 'Edificio', color: '#d6d3cd' },
+  { value: 'water', label: 'Agua', color: '#1f7a8c' },
   { value: 'erase', label: 'Borrar', color: '#1f2937' },
 ];
 
@@ -258,6 +269,8 @@ export interface AppState {
   buildingKind: BuildingKind;
   buildingColor: string;
   lighting: Lighting;
+  view: CameraView;
+  roadKind: RoadKind;
 }
 
 export type StandPatch = Partial<Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing' | 'curve'>>;

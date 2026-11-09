@@ -1,6 +1,8 @@
 import {
   AppMode,
   AppState,
+  CameraView,
+  RoadKind,
   migrateCurve,
   BUILDING_HEIGHT,
   Lighting,
@@ -39,6 +41,8 @@ function defaultState(): AppState {
     buildingKind: 'building',
     buildingColor: '#d6d3cd',
     lighting: 'day',
+    view: 'iso',
+    roadKind: 'road',
   };
 }
 
@@ -80,6 +84,8 @@ function load(): AppState {
       buildingKind: 'building',
       buildingColor: '#d6d3cd',
       lighting: parsed.lighting === 'night' ? 'night' : 'day',
+      view: parsed.view === 'top' ? 'top' : 'iso',
+      roadKind: 'road',
       selectedModule: MODULE_IDS.includes(parsed.selectedModule as ModuleId)
         ? (parsed.selectedModule as ModuleId) : 'west',
       selectedStandId: null,
@@ -113,6 +119,7 @@ function commit(patch: Partial<AppState> | ((s: AppState) => Partial<AppState>))
       selectedModule: state.selectedModule,
       rotationSteps: state.rotationSteps,
       lighting: state.lighting,
+      view: state.view,
     }));
   } catch {
     /* almacenamiento no disponible: la sesión sigue funcionando */
@@ -268,6 +275,14 @@ export const actions = {
     commit({ tool });
   },
 
+  setRoadKind(kind: RoadKind) {
+    commit({ roadKind: kind });
+  },
+
+  setView(view: CameraView) {
+    commit({ view });
+  },
+
   setLighting(lighting: Lighting) {
     commit({ lighting });
   },
@@ -291,8 +306,10 @@ export const actions = {
           delete env[key];
           break;
         case 'road':
-        case 'path':
-          env[key] = { type: s.tool };
+          env[key] = { type: s.roadKind };
+          break;
+        case 'water':
+          env[key] = { type: 'water' };
           break;
         case 'tree': {
           const base: EnvCell = cur ?? { type: 'park' };

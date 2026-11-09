@@ -25,7 +25,6 @@ export function EditorPanel({ open, setOpen }: EditorPanelProps) {
         <button className="panel-handle" onClick={() => setOpen(!open)} aria-expanded={open}>
           <span className="grip" /> Editor · {MODULE_NAMES[state.selectedModule]}
         </button>
-        <button className="panel-close" onClick={() => setOpen(false)} aria-label="Cerrar editor">✕</button>
       </div>
 
       <div className="panel-body">

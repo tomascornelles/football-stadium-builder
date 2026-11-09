@@ -1,6 +1,7 @@
+import { ColorPicker } from './ColorPicker';
 import { useSyncExternalStore } from 'react';
 import { actions, getState, subscribe } from '../store';
-import { BUILDING_OPTIONS, ENV_TOOLS } from '../types';
+import { BUILDING_OPTIONS, ENV_TOOLS, ROAD_OPTIONS } from '../types';
 import { confirmDialog } from './dialog';
 
 interface EnvironmentPanelProps {
@@ -19,7 +20,6 @@ export function EnvironmentPanel({ open, setOpen }: EnvironmentPanelProps) {
         <button className="panel-handle" onClick={() => setOpen(!open)} aria-expanded={open}>
           <span className="grip" /> Entorno · {toolLabel}
         </button>
-        <button className="panel-close" onClick={() => setOpen(false)} aria-label="Cerrar editor">✕</button>
       </div>
 
       <div className="panel-body">
@@ -43,6 +43,25 @@ export function EnvironmentPanel({ open, setOpen }: EnvironmentPanelProps) {
           </p>
         </section>
 
+        {state.tool === 'road' && (
+          <section className="editor">
+            <h2 className="section-title">Tipo de vía</h2>
+            <div className="segmented kind-segmented" role="tablist">
+              {ROAD_OPTIONS.map((o) => (
+                <button
+                  key={o.value}
+                  role="tab"
+                  aria-selected={state.roadKind === o.value}
+                  className={state.roadKind === o.value ? 'active' : ''}
+                  onClick={() => actions.setRoadKind(o.value)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {state.tool === 'building' && (
           <section className="editor">
             <h2 className="section-title">Tipo de edificio</h2>
@@ -61,11 +80,11 @@ export function EnvironmentPanel({ open, setOpen }: EnvironmentPanelProps) {
             </div>
             <label className="field-row inline">
               <span>Color de fachada</span>
-              <input
-                type="color"
+              <ColorPicker
+                
                 value={state.buildingColor}
-                onChange={(e) => actions.setBuildingColor(e.target.value)}
-              />
+                onChange={(v) => actions.setBuildingColor(v)}
+        />
             </label>
           </section>
         )}

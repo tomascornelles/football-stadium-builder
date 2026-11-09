@@ -521,11 +521,12 @@ export function buildModuleStructures(
   extent: ModuleExtent | null,
   anchors: Anchors,
   tallest: Tallest | null,
+  ringBack: number,
 ): THREE.Group {
   const frame = moduleFrame(moduleId, anchors);
   const group = new THREE.Group();
   const ex = resolveExtent(extent);
-  const wallU = ex.back + ext.wallDistance;
+  const wallU = ringBack + ext.wallDistance;
 
   if (ext.wall !== 'none') {
     group.add(sweepMesh(frame, rectPoints(wallU, 0, wallU + ext.wallThickness, ext.wallHeight), wallMaterial(ext)));
@@ -559,6 +560,39 @@ export function buildModuleStructures(
     if (ext.roofColumns) {
       addColumnsAlong(group, tFrame, [L - 0.8], yb(L - 0.8), concreteMaterial());
       if (ext.roof !== 'canopy') addColumnsAlong(group, tFrame, [u0 + 0.8], yb(u0 + 0.8), concreteMaterial());
+    }
+    // Fanal de la marquesina: bajo el borde delantero, apuntando al centro (se enciende de noche)
+    const lampY = tallest.base + tallest.stand.height + ext.roofHeight - 0.3;
+    const lampP = surface(tFrame, 0.5, u0 + 1);
+    const lamp = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5, 0.4, 1.5),
+      new THREE.MeshBasicMaterial({ color: 0xfff3d1 }),
+    );
+    lamp.position.set(lampP.x, lampY, lampP.z);
+    lamp.rotation.y = faceRotation(tFrame.at(0.5).n);
+    lamp.userData.roofLight = true;
+    lamp.userData.lightColor = '#fff3d1';
+    group.add(lamp);
+    // Marcador de marquesina: panel sobre el centro de la cubierta
+    if (ext.roofScore) {
+      const bu = (u0 + L) / 2;
+      const bp = surface(tFrame, 0.5, bu);
+      const by = tallest.base + tallest.stand.height + ext.roofHeight + T + 3;
+      const rot = faceRotation(tFrame.at(0.5).n);
+      const frameMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.6, 5.8, 15.6),
+        new THREE.MeshBasicMaterial({ color: 0xe8dcc4 }),
+      );
+      frameMesh.position.set(bp.x, by, bp.z);
+      frameMesh.rotation.y = rot;
+      group.add(frameMesh);
+      const board = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 5, 14),
+        new THREE.MeshBasicMaterial({ color: 0x0a2e38 }),
+      );
+      board.position.set(bp.x + tFrame.at(0.5).n.x * 0.2, by, bp.z + tFrame.at(0.5).n.y * 0.2);
+      board.rotation.y = rot;
+      group.add(board);
     }
     if (ext.roofDeco !== 'none') {
       const decoMat = new THREE.MeshLambertMaterial({ color: ext.roofDecoColor, flatShading: true });
@@ -667,7 +701,7 @@ function addDecoration(
       break;
     }
     case 'towers': {
-      const positions = isCorner(moduleId) ? [0.5] : ts;
+      const positions = ts;
       for (const t of positions) {
         const p = surface(frame, t, outerU + 2.5);
         const shaft = new THREE.Mesh(new THREE.BoxGeometry(5, h, 5), mat);
@@ -836,8 +870,8 @@ export function tallestStand(stands: Stand[], moduleId: ModuleId, anchors: Ancho
 }
 
 /** Extremos de la fachada de un módulo en el mundo. */
-function wallEnds(moduleId: ModuleId, ext: ModuleExterior, extent: ModuleExtent | null, anchors: Anchors): THREE.Vector3[] {
-  const u = resolveExtent(extent).back + ext.wallDistance;
+function wallEnds(moduleId: ModuleId, ext: ModuleExterior, extent: ModuleExtent | null, anchors: Anchors, ringBack: number): THREE.Vector3[] {
+  const u = ringBack + ext.wallDistance;
   const frame = moduleFrame(moduleId, anchors);
   return [surface(frame, 0, u), surface(frame, 1, u)];
 }
@@ -847,6 +881,7 @@ export function buildJunctions(
   exteriors: Record<ModuleId, ModuleExterior>,
   extents: Record<ModuleId, ModuleExtent | null>,
   anchors: Anchors,
+  ringBack: number,
 ): THREE.Group {
   const group = new THREE.Group();
   for (let i = 0; i < RING.length; i++) {
@@ -856,8 +891,8 @@ export function buildJunctions(
     const eb = exteriors[b];
     if (ea.wall === 'none' || eb.wall === 'none') continue;
 
-    const pa = wallEnds(a, ea, extents[a], anchors);
-    const pb = wallEnds(b, eb, extents[b], anchors);
+    const pa = wallEnds(a, ea, extents[a], anchors, ringBack);
+    const pb = wallEnds(b, eb, extents[b], anchors, ringBack);
     let best: { p: THREE.Vector3; q: THREE.Vector3; d: number } | null = null;
     for (const p of pa) {
       for (const q of pb) {

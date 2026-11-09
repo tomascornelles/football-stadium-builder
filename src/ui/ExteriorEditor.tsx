@@ -1,3 +1,4 @@
+import { ColorPicker } from './ColorPicker';
 import { useState } from 'react';
 import { actions } from '../store';
 import {
@@ -38,7 +39,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
   return (
     <label className="field-row inline">
       <span>{label}</span>
-      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
+      <ColorPicker  value={value} onChange={(v) => onChange(v)} />
     </label>
   );
 }
@@ -96,6 +97,7 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
             )}
             <Toggle label="Pilares de apoyo" checked={ext.roofColumns} onChange={(v) => set({ roofColumns: v })} />
             <ColorField label="Color" value={ext.roofColor} onChange={(v) => set({ roofColor: v })} />
+            <Toggle label="Marcador de marquesina" checked={ext.roofScore} onChange={(v) => set({ roofScore: v })} />
             <Select label="Decoración sobre cubierta" value={ext.roofDeco} options={ROOF_DECO_OPTIONS}
               onChange={(v) => set({ roofDeco: v })} />
             {ext.roofDeco !== 'none' && (

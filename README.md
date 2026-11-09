@@ -2,7 +2,7 @@
 
 Constructor visual de estadios de fútbol en estética pixel art isométrica. Es una aplicación web progresiva (PWA) que funciona en escritorio, tablet y móvil, y puede instalarse y usarse sin conexión tras la primera carga.
 
-**Versión actual:** 0.20.2
+**Versión actual:** 0.23.1
 
 ## Características
 
@@ -97,6 +97,12 @@ Al importar, el archivo se valida y los valores fuera de rango se ajustan a los 
 - Las esquinas curvas estiran las texturas de ladrillo y ventanas a lo largo del arco.
 - Los muros de unión son cajas rectas, así que en uniones muy oblicuas pueden verse angulares.
 - Las cubiertas y la iluminación se calculan por módulo, sin coordinarse con los módulos vecinos.
+
+## Documentación para agentes
+
+- `AGENTS.md`: instrucciones, versionado y flujo de trabajo.
+- `CONTEXT.md`: qué es el proyecto, arquitectura y decisiones.
+- `DESIGN_SYSTEM.md`: estilo visual, colores y componentes.
 
 ## Licencia
 
