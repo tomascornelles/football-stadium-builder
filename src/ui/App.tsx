@@ -11,12 +11,12 @@ import { exportFlow, importFlow, libraryFlow, pngFlow, resetFlow, saveFlow } fro
 function RotateIcon({ dir }: { dir: 'left' | 'right' }) {
   // Flechas curvas de trazo
   return dir === 'left' ? (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 12a9 9 0 1 0 2.64-6.36L3 8" />
       <polyline points="3 3 3 8 8 8" />
     </svg>
   ) : (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
       <polyline points="21 3 21 8 16 8" />
     </svg>
@@ -59,7 +59,7 @@ export function App() {
     <div className={`app ${panelOpen ? 'panel-open' : ''}`}>
       <header className="toolbar glass">
         <div className="brand">
-          <span className="logo">⚽</span>
+          <img className="logo" src="./logo.svg" alt="" width="36" height="36" />
           <div>
             <strong>Piixell</strong>
             <small>v{APP_VERSION}</small>
@@ -153,9 +153,9 @@ export function App() {
             title={state.view === 'top' ? 'Vista isométrica' : 'Vista cenital'}
             onClick={() => actions.setView(state.view === 'top' ? 'iso' : 'top')}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <rect x="4" y="4" width="16" height="16" rx="2" />
-              <path d="M4 12h16M12 4v16" />
+              <rect x="8" y="8" width="8" height="8" rx="1" />
             </svg>
           </button>
           <button className="round-btn" aria-label="Girar a la derecha" onClick={() => actions.rotate(-1)}>

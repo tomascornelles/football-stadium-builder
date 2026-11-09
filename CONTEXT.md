@@ -8,7 +8,7 @@ El usuario construye un estadio por módulos (laterales, fondos y esquinas), con
 
 ## Estado actual
 
-Versión **0.23.3**. Funcionalidades:
+Versión **0.23.4**. Funcionalidades:
 
 - **Estadio**: 8 módulos (`north`, `ne`, `east`, `se`, `south`, `sw`, `west`, `nw`). `north`/`south` son laterales (105 m), `west`/`east` son fondos (68 m), las esquinas son curvas de Bézier.
 - **Gradas**: altura, inclinación, desplazamiento, curvatura (recta, curva intermedia, curva), pilares, barandilla, color. Se apilan por niveles.

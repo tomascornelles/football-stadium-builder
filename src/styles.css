@@ -525,3 +525,6 @@ body {
 .lighting-seg button { color: #E8DCC4; }
 .lighting-seg button.active { background: #E8DCC4 !important; color: #0A2E38 !important; }
 .modal-overlay { position: fixed; left: 0; right: 0; }
+
+/* v0.23.4: logo propio en la cabecera */
+.brand .logo { width: 36px; height: 36px; display: block; font-size: 0; }
