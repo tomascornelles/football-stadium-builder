@@ -515,13 +515,359 @@ body {
 /* v0.23.1: sin botón de cierre en móvil; el asa abre y cierra el panel */
 .panel-close { display: none !important; }
 
-/* v0.23.3: asa verde; selector día/noche con fondo; diálogos sobre el área visible */
-.grip { background: #27ae60 !important; }
-.lighting-seg {
-  background: rgba(10, 46, 56, 0.72) !important;
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+/* v0.25.0: botones de aplicar a todo el ancho */
+.apply-row { grid-template-columns: 1fr; }
+
+/* ==========================================================================
+   v0.27.0 · Fluent: colores planos, transparencia 80 %, desenfoque, brillo de 1 px
+   Paleta: acento #16697A · textos #1D2729 · fondos #EDE7E3 · detalle #FFA62B
+   Espaciado: múltiplos de 8 (8, 16, 24, 32)
+   ========================================================================== */
+
+:root {
+  --accent: #16697A;
+  --accent-2: #FFA62B;
+  --text: #1D2729;
+  --bg: #EDE7E3;
+  --muted: rgba(29, 39, 41, 0.66);
+  --surface: rgba(237, 231, 227, 0.8);
+  --control: rgba(255, 255, 255, 0.6);
+  --stroke: rgba(29, 39, 41, 0.12);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow: 0 8px 24px rgba(29, 39, 41, 0.18);
+  --radius: 8px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  color-scheme: light;
 }
-.lighting-seg button { color: #E8DCC4; }
-.lighting-seg button.active { background: #E8DCC4 !important; color: #0A2E38 !important; }
-.modal-overlay { position: fixed; left: 0; right: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Superficies: un solo color translúcido, desenfoque de fondo y sombra suave */
+.glass,
+.toolbar,
+.panel,
+.menu,
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: var(--highlight), var(--shadow);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  color: var(--text);
+}
+.glass::before,
+.panel::before,
+.toolbar::before,
+.menu::before,
+.modal::before {
+  content: none;
+  background: none;
+}
+
+.modal-overlay { background: rgba(29, 39, 41, 0.35); }
+
+/* Botones */
+.btn {
+  background: var(--control);
+  color: var(--text);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: var(--highlight);
+}
+.btn:hover { background: rgba(255, 255, 255, 0.8); }
+.btn.primary,
+.btn.solid-danger {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.btn.primary:hover { background: var(--accent); filter: brightness(1.08); }
+.btn.danger { color: #B42318; }
+.btn.solid-danger { background: #B42318; }
+.btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
+.round-btn {
+  background: var(--control);
+  color: var(--text);
+  border: 1px solid var(--stroke);
+  box-shadow: var(--highlight);
+}
+.round-btn svg rect,
+.round-btn svg path,
+.round-btn svg line,
+.round-btn svg circle { stroke: currentColor; fill: currentColor; }
+.round-btn.active { background: var(--accent); color: var(--bg); border-color: transparent; }
+
+/* Selección y segmentados */
+.segmented,
+.kind-segmented,
+.lighting-seg {
+  background: rgba(29, 39, 41, 0.08);
+  border-radius: var(--radius);
+}
+.segmented button.active,
+.kind-segmented button.active,
+.lighting-seg button.active,
+.round-btn.active,
+.tool-btn.active,
+.module-cell.active,
+.stand-item.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: transparent;
+}
+.module-cell,
+.stand-item,
+.tool-btn {
+  background: var(--control);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+/* Campos */
+select,
+.field-row.inline select,
+.modal input[type="text"],
+.copy-row select {
+  background: var(--control);
+  color: var(--text);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+}
+input[type="range"] { accent-color: var(--accent); }
+input.switch:checked { background: var(--accent); }
+
+/* Texto */
+.section-title,
+.brand strong,
+.modal h2 { color: var(--text); }
+.muted,
+.hint-text,
+.brand small,
+.stand-item .meta,
+.module-cell .count,
+.saved-item small,
+.stage-hint { color: var(--muted); }
+.stage-hint { background: var(--surface); }
+
+/* Detalle con acento secundario: foco de teclado y elemento seleccionado en la grada */
+:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+/* Marca: logo nuevo */
+.logo {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  flex: none;
+}
+
+/* Selector de color */
+.swatch-btn.active { border-color: var(--text); box-shadow: 0 0 0 2px var(--accent); }
+.custom-color { border-radius: var(--radius); }
+
+/* Barras de desplazamiento */
+* { scrollbar-color: rgba(29, 39, 41, 0.28) transparent; }
+
+/* Menús */
+.menu-item { color: var(--text); }
+.menu-item.danger { color: #B42318; }
+.menu-item:hover, .menu-item:active { background: rgba(22, 105, 122, 0.1); }
+
+/* ==========================================================================
+   v0.27.1 · Correcciones de coherencia: radio único, sombras, separación de 8 px,
+   formularios uniformes y datos secundarios legibles sobre el acento
+   ========================================================================== */
+
+:root {
+  --radius: 8px;
+  --shadow-sm: 0 2px 8px rgba(29, 39, 41, 0.14);
+}
+
+/* Radio único en todos los elementos */
+.btn,
+.round-btn,
+select,
+input[type="text"],
+.module-cell,
+.stand-item,
+.tool-btn,
+.swatch-btn,
+.custom-color,
+.segmented,
+.segmented button,
+.kind-segmented,
+.kind-segmented button,
+.lighting-seg,
+.lighting-seg button,
+details.sub,
+.menu,
+.menu-item,
+.modal,
+.panel,
+.toolbar,
+.thumb,
+.saved-item {
+  border-radius: var(--radius);
+}
+
+/* Sombra detrás de los elementos */
+.btn,
+.round-btn,
+select,
+input[type="text"],
+.module-cell,
+.stand-item,
+.tool-btn,
+.segmented,
+.kind-segmented,
+.lighting-seg,
+details.sub,
+.saved-item {
+  box-shadow: var(--shadow-sm);
+}
+.btn.primary { box-shadow: var(--shadow-sm); }
+
+/* Separación de 8 px entre elementos */
+.editor,
+.panel-body,
+.stand-list,
+.module-map,
+.tool-grid,
+.saved-list,
+.actions,
+.copy-row,
+.row-between,
+.kind-segmented,
+.lighting-seg {
+  gap: 8px;
+}
+.editor,
+.panel-body,
+.stand-list,
+.saved-list {
+  display: flex;
+  flex-direction: column;
+}
+.actions,
+.copy-row,
+.row-between { display: flex; align-items: center; }
+.actions > *,
+.copy-row > * { flex: 1 1 auto; }
+details.sub + details.sub,
+details.sub + .actions,
+.actions + details.sub { margin-top: 8px; }
+
+/* Formularios uniformes: mismo alto, relleno y campo */
+select,
+input[type="text"],
+.copy-row select,
+.field-row.inline select {
+  min-height: 40px;
+  padding: 8px 12px;
+  font: inherit;
+  color: var(--text);
+  background: var(--control);
+  border: 1px solid var(--stroke);
+}
+.field-row.inline { min-height: 40px; }
+
+/* Selector día / noche: contenedor claro y botones legibles */
+.lighting-seg,
+.segmented,
+.kind-segmented {
+  background: rgba(29, 39, 41, 0.08);
+  padding: 4px;
+  display: flex;
+}
+.lighting-seg button,
+.segmented button,
+.kind-segmented button {
+  flex: 1 1 0;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  box-shadow: none;
+  min-height: 32px;
+  padding: 8px 12px;
+}
+.lighting-seg button.active,
+.segmented button.active,
+.kind-segmented button.active {
+  background: var(--accent);
+  color: var(--bg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Casillas y conmutadores: cuadrados con el mismo radio */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--stroke);
+  border-radius: 4px;
+  background: var(--control);
+  box-shadow: var(--shadow-sm);
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  cursor: pointer;
+}
+input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: transparent;
+}
+input[type="checkbox"]:checked::after {
+  content: "✓";
+  color: var(--bg);
+  font-size: 12px;
+  line-height: 1;
+}
+input.switch {
+  border-radius: var(--radius);
+}
+
+/* Sin borde naranja en los elementos seleccionados */
+.stand-item.active,
+.module-cell.active,
+.tool-btn.active,
+.round-btn.active,
+.segmented button.active,
+.lighting-seg button.active,
+.kind-segmented button.active {
+  outline: none;
+  border-color: transparent;
+}
+:focus-visible { outline-color: transparent; }
+.btn:focus-visible,
+select:focus-visible,
+input[type="text"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Datos secundarios sobre el acento: claros y legibles */
+.stand-item.active .meta,
+.stand-item.active small,
+.module-cell.active .count,
+.module-cell.active small,
+.tool-btn.active small,
+.btn.primary small,
+.btn.primary .meta,
+.segmented button.active small,
+.round-btn.active small {
+  color: var(--bg);
+  opacity: 0.9;
+}
+.btn.primary { color: var(--bg); }

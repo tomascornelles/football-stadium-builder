@@ -62,6 +62,22 @@ class PolyBuffer {
     }
   }
 
+  /** Brazo que cambia de anchura entre dos distancias (une vías de distinto ancho). */
+  taper(cx: number, cz: number, dx: number, dz: number, from: number, to: number, w0: number, w1: number) {
+    const px = -dz;
+    const pz = dx;
+    const sx = cx + dx * from;
+    const sz = cz + dz * from;
+    const ex = cx + dx * to;
+    const ez = cz + dz * to;
+    this.polygon([
+      [sx + px * (w0 / 2), sz + pz * (w0 / 2)],
+      [ex + px * (w1 / 2), ez + pz * (w1 / 2)],
+      [ex - px * (w1 / 2), ez - pz * (w1 / 2)],
+      [sx - px * (w0 / 2), sz - pz * (w0 / 2)],
+    ]);
+  }
+
   /** Brazo rectangular desde (cx, cz) en la dirección (dx, dz). */
   arm(cx: number, cz: number, dx: number, dz: number, from: number, to: number, w: number) {
     const px = -dz * (w / 2);
@@ -140,84 +156,149 @@ function surfaceMesh(geo: THREE.BufferGeometry | null, color: number): THREE.Mes
 
 const at = (env: Record<string, EnvCell>, i: number, j: number) => env[cellKey(i, j)]?.type;
 
-/* ---------- Agua con orillas irregulares ---------- */
+/* ---------- Agua con orillas suaves ---------- */
 
-const CORNERS: [number, number][] = [[-HALF, -HALF], [HALF, -HALF], [HALF, HALF], [-HALF, HALF]];
+/** Píxeles de textura por celda. */
+const TEX_CELL = 16;
 
-/** Contorno de una celda: cada lado se desplaza hacia fuera (positivo) o dentro (negativo). */
-function outline(cx: number, cz: number, offset: (side: number) => number): [number, number][] {
-  const pts: [number, number][] = [];
-  for (let s = 0; s < 4; s++) {
-    const a = CORNERS[s];
-    const b = CORNERS[(s + 1) % 4];
-    const [dx, dz] = DIRS[s];
-    for (let k = 0; k < 4; k++) {
-      const t = k / 4;
-      const bump = Math.sin(Math.PI * t);
-      const o = offset(s) * bump;
-      pts.push([cx + a[0] + (b[0] - a[0]) * t + dx * o, cz + a[1] + (b[1] - a[1]) * t + dz * o]);
+const clampI = (v: number, N: number) => Math.min(N - 1, Math.max(0, v));
+
+/** Desenfoque 3×3 separable de una rejilla N×N. */
+function blurGrid(src: Float32Array, N: number): Float32Array {
+  const k = [1, 2, 1];
+  const tmp = new Float32Array(N * N);
+  const out = new Float32Array(N * N);
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      let s = 0;
+      for (let d = -1; d <= 1; d++) s += k[d + 1] * src[j * N + clampI(i + d, N)];
+      tmp[j * N + i] = s / 4;
     }
   }
-  return pts;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      let s = 0;
+      for (let d = -1; d <= 1; d++) s += k[d + 1] * tmp[clampI(j + d, N) * N + i];
+      out[j * N + i] = s / 4;
+    }
+  }
+  return out;
 }
 
-/** Agua: cada celda de agua con orillas irregulares y una franja de arena en los lados de tierra. */
+/** Interpolación bilineal; (fx, fy) en coordenadas de celda con centro en los enteros. */
+function sampleGrid(g: Float32Array, N: number, fx: number, fy: number): number {
+  const x0 = Math.floor(fx);
+  const y0 = Math.floor(fy);
+  const tx = fx - x0;
+  const ty = fy - y0;
+  const at = (x: number, y: number) => g[clampI(y, N) * N + clampI(x, N)];
+  const a = at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx;
+  const b = at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx;
+  return a * (1 - ty) + b * ty;
+}
+
+const smoothstep = (e0: number, e1: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+};
+
+const rgbOf = (hex: number): [number, number, number] => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+
+/**
+ * Texturas del agua y de la arena. El contorno sale de las celdas de agua vecinas,
+ * suavizado por desenfoque: las orillas siguen la forma del agua, no cada celda por separado.
+ */
+function waterTextures(env: Record<string, EnvCell>): { water: THREE.CanvasTexture; sand: THREE.CanvasTexture } {
+  const N = ENV_N;
+  const mask = new Float32Array(N * N);
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) mask[j * N + i] = at(env, i, j) === 'water' ? 1 : 0;
+  }
+  const near = blurGrid(mask, N);
+  const wide = blurGrid(blurGrid(blurGrid(mask, N), N), N);
+
+  const size = N * TEX_CELL;
+  const cw = document.createElement('canvas');
+  const cs = document.createElement('canvas');
+  cw.width = cw.height = cs.width = cs.height = size;
+  const gw = cw.getContext('2d')!;
+  const gs = cs.getContext('2d')!;
+  const iw = gw.createImageData(size, size);
+  const is = gs.createImageData(size, size);
+  const WATER = rgbOf(COLORS.water);
+  const FOAM = rgbOf(0x7fd3df);
+  const SAND = rgbOf(COLORS.sand);
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const fx = (x + 0.5) / TEX_CELL - 0.5;
+      const fy = (y + 0.5) / TEX_CELL - 0.5;
+      const w = sampleGrid(near, N, fx, fy);
+      const sd = sampleGrid(wide, N, fx, fy);
+      const p = (y * size + x) * 4;
+      // Espuma en la franja de la orilla, agua en el centro
+      const band = smoothstep(0.4, 0.5, w) * (1 - smoothstep(0.52, 0.75, w)) * 0.7;
+      iw.data[p] = WATER[0] * (1 - band) + FOAM[0] * band;
+      iw.data[p + 1] = WATER[1] * (1 - band) + FOAM[1] * band;
+      iw.data[p + 2] = WATER[2] * (1 - band) + FOAM[2] * band;
+      iw.data[p + 3] = smoothstep(0.4, 0.5, w) * 255;
+      is.data[p] = SAND[0];
+      is.data[p + 1] = SAND[1];
+      is.data[p + 2] = SAND[2];
+      is.data[p + 3] = smoothstep(0.1, 0.22, sd) * 255;
+    }
+  }
+  gw.putImageData(iw, 0, 0);
+  gs.putImageData(is, 0, 0);
+  return { water: new THREE.CanvasTexture(cw), sand: new THREE.CanvasTexture(cs) };
+}
+
+/** Agua y arena: un plano por capa con la textura de su contorno. */
 function buildWater(env: Record<string, EnvCell>): THREE.Group {
   const group = new THREE.Group();
-  const water = new PolyBuffer(Y.water);
-  const sand = new PolyBuffer(Y.sand);
-
-  for (const [key, cell] of Object.entries(env)) {
-    if (cell.type !== 'water') continue;
-    const [i, j] = key.split(',').map(Number);
-    const cx = cellCenter(i);
-    const cz = cellCenter(j);
-    const wet = (s: number) => at(env, i + DIRS[s][0], j + DIRS[s][1]) === 'water';
-
-    // Agua: los lados con agua vecina llegan al borde; los de tierra quedan con orilla irregular
-    water.polygonAny(outline(cx, cz, (s) => (wet(s) ? 0 : -(1.5 + 2.5 * seeded(i * 7.3 + j * 3.1 + s)))));
-    // Arena: se extiende sobre la tierra vecina, en los lados sin agua
-    sand.polygonAny(outline(cx, cz, (s) => (wet(s) ? 0 : 2.5 + 2 * seeded(i * 5.9 + j * 8.3 + s * 2))));
-  }
-
-  const add = (mesh: THREE.Mesh | null) => { if (mesh) group.add(mesh); };
-  add(surfaceMesh(sand.geometry(), COLORS.sand));
-  add(surfaceMesh(water.geometry(), COLORS.water));
+  if (!Object.values(env).some((c) => c.type === 'water')) return group;
+  const { water, sand } = waterTextures(env);
+  const plane = (map: THREE.Texture, y: number) => {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(ENV_SIZE, ENV_SIZE),
+      new THREE.MeshLambertMaterial({ map, transparent: true, depthWrite: false }),
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = y;
+    return mesh;
+  };
+  group.add(plane(sand, Y.sand));
+  group.add(plane(water, Y.water));
   return group;
 }
 
 /* ---------- Carreteras, avenidas, caminos, glorietas y aparcamientos ---------- */
 
-/** Semáforo y farolas se colocan en las vías; los coches circulan por los brazos. */
-function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
-  const group = new THREE.Group();
-  const sidewalk = new PolyBuffer(Y.sidewalk);
-  const road = new PolyBuffer(Y.road);
-  const path = new PolyBuffer(Y.path);
-  const lines = new PolyBuffer(Y.line);
-  const island = new PolyBuffer(Y.island);
-  const cars: THREE.Mesh[] = [];
-  const lights: { x: number; z: number; color: number }[] = [];
-  const lamps: [number, number][] = [];
+/**
+ * Reglas de la red viaria:
+ * - Glorieta: anillo de 8 vías alrededor de una celda libre.
+ * - Aparcamiento: cualquier bloque de 2 × 2 vías o más.
+ * - Cruce: vía con 3 o 4 vías vecinas (en T o en X). Nunca es aparcamiento.
+ * - Vía: el resto de vías.
+ */
+export function classifyRoads(env: Record<string, EnvCell>) {
   const via = (i: number, j: number) => isVia(at(env, i, j));
-  const surf = (i: number, j: number) => isSurface(at(env, i, j));
-
-  // Bloques de 3 × 3 vías son aparcamiento; las vías interiores (cuatro vecinos) también
   const parking = new Set<string>();
+  const junction = new Set<string>();
+  const inRound = new Set<string>();
+  const roundCenters = new Set<string>();
+
   for (const [key, cell] of Object.entries(env)) {
     if (!isVia(cell.type)) continue;
     const [i, j] = key.split(',').map(Number);
-    let full3 = true;
-    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
-      if (!via(i + di, j + dj)) full3 = false;
+    if (DIRS.filter(([dx, dz]) => via(i + dx, j + dz)).length >= 3) junction.add(key);
+
+    // Cualquier bloque de 2 × 2 vías o más es aparcamiento: si la celda inicia un 2 × 2 completo, se marca
+    if (via(i + 1, j) && via(i, j + 1) && via(i + 1, j + 1)) {
+      for (const [di, dj] of [[0, 0], [1, 0], [0, 1], [1, 1]]) parking.add(cellKey(i + di, j + dj));
     }
-    if (full3) for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) parking.add(cellKey(i + di, j + dj));
-    if (via(i + 1, j) && via(i - 1, j) && via(i, j + 1) && via(i, j - 1)) parking.add(key);
   }
 
-  // Glorietas: anillo de 8 vías alrededor de una celda central libre
-  const inRound = new Set<string>();
-  const roundCenters = new Set<string>();
   for (const [key, cell] of Object.entries(env)) {
     if (!isVia(cell.type)) continue;
     const [i, j] = key.split(',').map(Number);
@@ -237,6 +318,47 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
       }
     }
   }
+  return { parking, junction, inRound, roundCenters };
+}
+
+/** Paso de peatones (franjas paralelas al tráfico) y línea de detención en un brazo de cruce. */
+function crosswalk(lines: PolyBuffer, cx: number, cz: number, dx: number, dz: number, W: number) {
+  const px = -dz;
+  const pz = dx;
+  const s1 = HALF - 0.3;
+  const s0 = HALF - 3.3;
+  const count = Math.max(3, Math.floor((W - 1.5) / 1.6));
+  for (let k = 0; k < count; k++) {
+    const p = -(W - 2) / 2 + ((k + 0.5) * (W - 2)) / count;
+    lines.arm(cx + px * p, cz + pz * p, dx, dz, s0, s1, 0.7);
+  }
+  const sStop = s0 - 0.6;
+  const hw = (W - 1) / 2;
+  const bx = cx + dx * sStop;
+  const bz = cz + dz * sStop;
+  lines.polygon([
+    [bx - px * hw, bz - pz * hw],
+    [bx + px * hw, bz + pz * hw],
+    [bx + px * hw + dx * 0.45, bz + pz * hw + dz * 0.45],
+    [bx - px * hw + dx * 0.45, bz - pz * hw + dz * 0.45],
+  ]);
+}
+
+/** Semáforo y farolas se colocan en las vías; los coches circulan por los brazos. */
+function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
+  const group = new THREE.Group();
+  const sidewalk = new PolyBuffer(Y.sidewalk);
+  const road = new PolyBuffer(Y.road);
+  const path = new PolyBuffer(Y.path);
+  const lines = new PolyBuffer(Y.line);
+  const island = new PolyBuffer(Y.island);
+  const cars: THREE.Mesh[] = [];
+  const lights: { x: number; z: number; color: number }[] = [];
+  const lamps: [number, number][] = [];
+  const via = (i: number, j: number) => isVia(at(env, i, j));
+  const surf = (i: number, j: number) => isSurface(at(env, i, j));
+
+  const { parking, junction, inRound, roundCenters } = classifyRoads(env);
 
   for (const [key, cell] of Object.entries(env)) {
     if (!isSurface(cell.type)) continue;
@@ -261,13 +383,28 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
     const surfArms = DIRS.filter(([dx, dz]) => surf(i + dx, j + dz));
     const viaArms = DIRS.filter(([dx, dz]) => via(i + dx, j + dz));
 
+    // Anchura del brazo hacia cada vecino: si es otra vía, el brazo se ensancha con transición suave
+    const widthTo = (dx: number, dz: number) => {
+      const t = at(env, i + dx, j + dz);
+      return isVia(t) ? WIDTH[t as 'road' | 'avenue'] : W;
+    };
+    const isJunction = junction.has(key);
+
     sidewalk.disc(cx, cz, W / 2 + SIDEWALK);
-    for (const [dx, dz] of viaArms) sidewalk.arm(cx, cz, dx, dz, 0, HALF, W + 2 * SIDEWALK);
+    for (const [dx, dz] of viaArms) sidewalk.taper(cx, cz, dx, dz, 0, HALF, W + 2 * SIDEWALK, widthTo(dx, dz) + 2 * SIDEWALK);
 
     road.disc(cx, cz, W / 2);
-    for (const [dx, dz] of surfArms) road.arm(cx, cz, dx, dz, 0, HALF, W);
+    for (const [dx, dz] of surfArms) {
+      if (isVia(at(env, i + dx, j + dz))) road.taper(cx, cz, dx, dz, 0, HALF, W, widthTo(dx, dz));
+      else road.arm(cx, cz, dx, dz, 0, HALF, W);
+    }
 
     for (const [dx, dz] of viaArms) {
+      if (isJunction) {
+        // Cruce: sin líneas centrales, con paso de peatones y línea de detención en cada brazo
+        crosswalk(lines, cx, cz, dx, dz, W);
+        continue;
+      }
       if (cell.type === 'avenue') {
         // Avenida: dos líneas discontinuas y mediana central con la vía vecina
         const px = -dz;

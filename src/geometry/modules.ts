@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CURVE_BULGE_BY, CurveType, MODULE_IDS, ModuleExterior, ModuleId, Stand } from '../types';
+import { CURVE_BULGE_BY, CurveType, MODULE_IDS, ModuleExterior, ModuleId, Stand, StandFacade, TowerPos } from '../types';
 import { PITCH_LENGTH, PITCH_WIDTH, ROW_RISE, STAND_GAP } from '../config';
 
 const HALF_L = PITCH_LENGTH / 2; // 52.5 m
@@ -13,6 +13,14 @@ const COLUMN_STEP = 8;
 const CONCRETE = 0xb9c0c9;
 const STEEL = 0xd1d5db;
 const TOWER = 0x9ca3af;
+/** Grosor del tablero hueco de una grada (m). */
+const TABLET = 0.5;
+/** Azul del marcador LED. */
+const LED_BLUE = 0x0ea5e9;
+/** Altura de cada tramo de escalera exterior (m). */
+const STAIR_FLIGHT = 5;
+/** Radio de las torres de escaleras (m). */
+const TOWER_R = 5;
 /** Color medio del césped, para la franja entre gradas y campo. */
 const APRON_COLOR = 0x3d9243;
 const RAIL_HEIGHT = 1.0;
@@ -272,14 +280,17 @@ export function standFrame(stand: Stand, anchors: Anchors, stands: Stand[]): Fra
     const rank = rankOf(stand, stands);
     const pf = neighborFrame(prev, rank, stands, anchors);
     const nf = neighborFrame(next, rank, stands, anchors);
-    const A = pf.at(1).p;
+    // El desplazamiento de la esquina mueve sus extremos a lo largo de la normal del vecino
+    // (no la curva entera): así una curva cerrada no se cruza consigo misma al alejarse
+    const off = cornerExtraOffset(stand, stands);
+    const A = pf.at(1).p.clone().addScaledVector(pf.at(1).n, off);
     const tA = pf.tan(1);
-    const B = nf.at(0).p;
+    const B = nf.at(0).p.clone().addScaledVector(nf.at(0).n, off);
     const tB = nf.tan(0);
     const k = CORNER_HANDLE[cornerTemplate(pf.curved, nf.curved)] * A.distanceTo(B);
     const P1 = A.clone().addScaledVector(tA, k);
     const P2 = B.clone().addScaledVector(tB, -k);
-    return offsetFrame(bezierFrame(A, P1, P2, B, true), cornerExtraOffset(stand, stands));
+    return bezierFrame(A, P1, P2, B, true);
   }
   const [a, b] = straightEnds(stand.moduleId, STAND_GAP + stand.offset);
   return buildFrame(a, b, CURVE_BULGE_BY[stand.curve as CurveType]);
@@ -294,6 +305,17 @@ function dedupe(points: THREE.Vector2[]): THREE.Vector2[] {
   }
   while (out.length > 1 && out[0].distanceTo(out[out.length - 1]) < 1e-6) out.pop();
   return out;
+}
+
+/** Tramo de una curva entre dos parámetros (para los paneles verticales). */
+function subFrame(frame: Frame, a: number, b: number): Frame {
+  return {
+    segments: Math.max(1, Math.ceil(frame.segments * (b - a))),
+    length: frame.length * (b - a),
+    curved: frame.curved,
+    at: (t) => frame.at(a + (b - a) * t),
+    tan: (t) => frame.tan(a + (b - a) * t),
+  };
 }
 
 /** Barre un perfil (u = distancia hacia fuera, y = altura) a lo largo de una curva. */
@@ -388,23 +410,56 @@ export function rowCount(height: number): number {
   return Math.max(2, Math.round(height / ROW_RISE));
 }
 
-/** Sección de la grada en (u, y). Pendiente real: u = altura / tan(inclinación). */
+/**
+ * Sección de la grada en (u, y): un tablero escalonado de 0,5 m de grosor que nace en su base.
+ * Pendiente real: u = altura / tan(inclinación). Por debajo queda hueco, como bajo unas escaleras.
+ */
 function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run: number } {
   const h = stand.height;
   const run = h / Math.tan(THREE.MathUtils.degToRad(stand.tilt));
   const rows = rowCount(h);
   const rise = h / rows;
   const tread = run / rows;
-  const bottom = baseY > 0 ? baseY - SLAB : 0;
 
-  const points: THREE.Vector2[] = [v2(0, bottom), v2(0, baseY)];
+  const top: THREE.Vector2[] = [v2(0, baseY)];
   for (let i = 0; i < rows; i++) {
     const y = baseY + (i + 1) * rise;
-    points.push(v2(i * tread, y));
-    points.push(v2((i + 1) * tread, y));
+    top.push(v2(i * tread, y));
+    top.push(v2((i + 1) * tread, y));
   }
-  points.push(v2(run, bottom));
-  return { points, run };
+  // Cara inferior: la superior desplazada hacia abajo el grosor del tablero
+  const under = top.slice().reverse().map((p) => v2(p.x, p.y - TABLET));
+  return { points: [...top, ...under], run };
+}
+
+/** Fachada de una grada: arranca en su base, llega a su altura y su grosor es la profundidad elegida. */
+function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, baseY: number, top: number) {
+  const f: StandFacade = stand.facade;
+  if (f.kind === 'none') return;
+  const d = f.depth;
+  const inner = run;
+  const outer = run + d;
+  const mat = (color: string) => new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
+  if (f.kind === 'pillars') {
+    // Pilares que llegan al suelo, en el borde exterior
+    addColumnsAlong(group, frame, [outer - 0.5], top, concreteMaterial());
+    return;
+  }
+  if (f.kind === 'solid') {
+    group.add(sweepMesh(frame, rectPoints(inner, baseY, outer, top), mat(f.color)));
+    return;
+  }
+  const n = Math.max(2, Math.round(f.count));
+  const h = top - baseY;
+  for (let k = 0; k < n; k++) {
+    const color = k % 2 === 0 ? f.color : f.colorB;
+    if (f.kind === 'vpanels') {
+      const sub = subFrame(frame, k / n, (k + 1) / n);
+      group.add(sweepMesh(sub, rectPoints(inner, baseY, outer, top), mat(color)));
+    } else {
+      group.add(sweepMesh(frame, rectPoints(inner, baseY + (h * k) / n, outer, baseY + (h * (k + 1)) / n), mat(color)));
+    }
+  }
 }
 
 /** Grupo 3D de una grada en coordenadas del mundo. */
@@ -418,9 +473,13 @@ export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, s
   tier.userData.isTier = true;
   group.add(tier);
 
-  if (baseY > 0 && stand.columns) {
-    addColumnsAlong(group, frame, [0.8, run - 0.8], baseY - SLAB, concreteMaterial());
+  // Pilares: solo bajo el tablero, desde el suelo hasta su cara inferior
+  const colH = baseY - TABLET;
+  if (colH > 0 && stand.columns !== 'none') {
+    const us: number[] = stand.columns === 'inner' ? [0.8] : [run - 0.8];
+    addColumnsAlong(group, frame, us, colH, concreteMaterial());
   }
+  addFacade(group, stand, frame, run, baseY, baseY + stand.height);
   if (stand.railing) {
     const rail = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true, side: THREE.DoubleSide });
     group.add(sweepMesh(frame, rectPoints(-RAIL_THICKNESS, baseY, 0, baseY + RAIL_HEIGHT), rail));
@@ -435,6 +494,8 @@ export interface ModuleExtent {
   front: number;
   /** Borde trasero, medido desde la curva de referencia del módulo. */
   back: number;
+  /** Borde exterior incluyendo las fachadas. */
+  outer: number;
   top: number;
 }
 
@@ -445,74 +506,24 @@ export function moduleExtent(stands: Stand[], moduleId: ModuleId): ModuleExtent 
   const anchors = computeAnchors(stands);
   const bases = layoutBaseHeights(list);
   let back = -Infinity;
+  let outer = -Infinity;
   let top = 0;
   for (const s of list) {
     const rel = isCorner(moduleId) ? cornerExtraOffset(s, stands) : STAND_GAP + s.offset - anchors[moduleId].v;
     const run = s.height / Math.tan(THREE.MathUtils.degToRad(s.tilt));
+    const facadeDepth = s.facade.kind === 'none' ? 0 : s.facade.depth;
     back = Math.max(back, rel + run);
+    outer = Math.max(outer, rel + run + facadeDepth);
     top = Math.max(top, (bases.get(s.id) ?? 0) + s.height);
   }
-  return { front: 0, back, top };
+  return { front: 0, back, outer, top };
 }
 
 function resolveExtent(extent: ModuleExtent | null): ModuleExtent {
-  return extent ?? { front: 0, back: 10, top: 0 };
+  return extent ?? { front: 0, back: 10, outer: 10, top: 0 };
 }
 
 /* ---------- Exteriores ---------- */
-
-const textureCache = new Map<string, THREE.CanvasTexture>();
-
-function patternTexture(kind: 'brick' | 'windows' | 'panels'): THREE.CanvasTexture {
-  const cached = textureCache.get(kind);
-  if (cached) return cached;
-  const canvas = document.createElement('canvas');
-  canvas.width = 32;
-  canvas.height = 32;
-  const g = canvas.getContext('2d')!;
-  g.fillStyle = '#ffffff';
-  g.fillRect(0, 0, 32, 32);
-  if (kind === 'brick') {
-    g.fillStyle = '#8c8c8c';
-    for (let r = 0; r < 4; r++) {
-      const y = r * 8;
-      const off = (r % 2) * 16;
-      g.fillRect(0, y, 32, 1);
-      g.fillRect(off, y, 1, 8);
-      g.fillRect((off + 16) % 32, y, 1, 8);
-    }
-  } else if (kind === 'windows') {
-    g.fillStyle = '#3f4650';
-    g.fillRect(2, 4, 28, 12);
-    g.fillRect(2, 20, 28, 8);
-  } else {
-    g.fillStyle = '#e2e2e2';
-    g.fillRect(0, 0, 16, 32);
-  }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestFilter;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(0.5, 0.5);
-  textureCache.set(kind, tex);
-  return tex;
-}
-
-function wallMaterial(ext: ModuleExterior): THREE.MeshLambertMaterial {
-  const base: THREE.MeshLambertMaterialParameters = {
-    color: ext.wallColor,
-    flatShading: true,
-    side: THREE.DoubleSide,
-  };
-  if (ext.wall === 'glass') {
-    return new THREE.MeshLambertMaterial({ ...base, transparent: true, opacity: 0.45, depthWrite: false });
-  }
-  if (ext.wall === 'brick' || ext.wall === 'windows' || ext.wall === 'panels') {
-    return new THREE.MeshLambertMaterial({ ...base, map: patternTexture(ext.wall) });
-  }
-  return new THREE.MeshLambertMaterial(base);
-}
 
 /** Exteriores de un módulo: fachada, cubierta, focos y marcador. */
 export function buildModuleStructures(
@@ -521,18 +532,11 @@ export function buildModuleStructures(
   extent: ModuleExtent | null,
   anchors: Anchors,
   tallest: Tallest | null,
-  ringBack: number,
 ): THREE.Group {
   const frame = moduleFrame(moduleId, anchors);
   const group = new THREE.Group();
   const ex = resolveExtent(extent);
-  const wallU = ringBack + ext.wallDistance;
 
-  if (ext.wall !== 'none') {
-    group.add(sweepMesh(frame, rectPoints(wallU, 0, wallU + ext.wallThickness, ext.wallHeight), wallMaterial(ext)));
-  }
-
-  const deckY = ext.roof !== 'none' && extent ? ex.top + ext.roofHeight : ex.top + 4;
   if (ext.roof !== 'none' && extent && tallest) {
     // La cubierta sigue la curva en planta de la grada más alta, pero es horizontal:
     // va a la altura de su borde superior más la holgura elegida
@@ -543,7 +547,9 @@ export function buildModuleStructures(
     const u0 = -ext.roofInset;
     const span = L - u0;
     const T = ext.roofThickness;
-    const yb = (_u: number) => tallest.base + tallest.stand.height + ext.roofHeight;
+    // Voladizo inclinado: la altura cambia linealmente desde el borde interior (positivo = sube hacia fuera)
+    const slope = ext.roof === 'cantilever' ? Math.tan(THREE.MathUtils.degToRad(ext.roofAngle)) : 0;
+    const yb = (u: number) => tallest.base + tallest.stand.height + ext.roofHeight + slope * (u - u0);
     // La cubierta curva se abomba en el centro, según su parámetro de flecha
     const bump = (u: number) => (ext.roof === 'arch' ? ext.roofSlope * 0.3 * Math.sin((Math.PI * (u - u0)) / span) : 0);
     const steps = ext.roof === 'arch' ? 12 : 1;
@@ -573,26 +579,10 @@ export function buildModuleStructures(
     lamp.userData.roofLight = true;
     lamp.userData.lightColor = '#fff3d1';
     group.add(lamp);
-    // Marcador de marquesina: panel colgado bajo el borde delantero, con marco
-    if (ext.roofScore) {
-      const bu = u0 + 1.2;
-      const bp = surface(tFrame, 0.5, bu);
-      const rot = faceRotation(tFrame.at(0.5).n);
-      const by = yb(0) - 3.1;
-      const frameMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.6, 5.8, 15.6),
-        new THREE.MeshBasicMaterial({ color: 0xe8dcc4 }),
-      );
-      frameMesh.position.set(bp.x, by, bp.z);
-      frameMesh.rotation.y = rot;
-      group.add(frameMesh);
-      const board = new THREE.Mesh(
-        new THREE.BoxGeometry(0.8, 5, 14),
-        new THREE.MeshBasicMaterial({ color: 0x0a2e38 }),
-      );
-      board.position.set(bp.x + tFrame.at(0.5).n.x * 0.2, by, bp.z + tFrame.at(0.5).n.y * 0.2);
-      board.rotation.y = rot;
-      group.add(board);
+    // Marcador de marquesina: pantalla LED azul bajo el borde delantero, a lo ancho de la cubierta
+    if (ext.score === 'marquesina') {
+      const top = yb(0) - 0.4;
+      group.add(sweepMesh(tFrame, roundedRectPoints(u0 + 0.2, top - 3.2, u0 + 1.2, top, 0.4), new THREE.MeshBasicMaterial({ color: LED_BLUE })));
     }
     // Barra de luz: solo con cubierta, en el borde interior, como pieza metálica (no emite)
     if (ext.flood === 'bar') {
@@ -605,11 +595,11 @@ export function buildModuleStructures(
   }
 
   if (ext.flood === 'mast') {
-    const towerU = (ext.wall !== 'none' ? wallU + ext.wallThickness : ex.back) + 2;
+    const towerU = ex.outer + 2;
     const h = ext.floodHeight;
     const steel = new THREE.MeshLambertMaterial({ color: TOWER, flatShading: true });
     const lightMat = new THREE.MeshBasicMaterial({ color: ext.floodColor });
-    const towers = isCorner(moduleId) ? 1 : ext.floodCount;
+    const towers = ext.floodCount;
     for (let k = 0; k < towers; k++) {
       const t = (k + 0.5) / towers;
       const p = surface(frame, t, towerU);
@@ -626,7 +616,7 @@ export function buildModuleStructures(
     }
   }
 
-  if (ext.score !== 'none') {
+  if (ext.score === 'marcador' || ext.score === 'pantalla') {
     const u = Math.max(0.5, ex.back - 1.5);
     const w = ext.scoreWidth;
     const boardY = ex.top + ext.scoreHeight;
@@ -656,7 +646,60 @@ export function buildModuleStructures(
     }
   }
   if (ext.deco !== 'none') addDecoration(group, moduleId, ext, frame, ex, extent);
+  if (ext.stairs && extent) addStairs(group, frame, ex, isCorner(moduleId) ? 1 : 3);
+  if (ext.circleTowers > 0 && extent) addCircleTowers(group, frame, ext, ex);
   return group;
+}
+
+/** Escaleras exteriores en zigzag por la fachada, con tramos de 5 m. */
+function addStairs(group: THREE.Group, frame: Frame, ex: ModuleExtent, count: number) {
+  const top = ex.top;
+  if (top <= 0) return;
+  const mat = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true });
+  const u = ex.outer + 0.3;
+  const flights = Math.max(1, Math.ceil(top / STAIR_FLIGHT));
+  for (let s = 0; s < count; s++) {
+    const a0 = s / count + 0.04;
+    const a1 = (s + 1) / count - 0.04;
+    for (let f = 0; f < flights; f++) {
+      const y0 = f * STAIR_FLIGHT;
+      const y1 = Math.min(top, y0 + STAIR_FLIGHT);
+      const fromStart = f % 2 === 0;
+      const tStart = fromStart ? a0 : a1;
+      const tEnd = fromStart ? a1 : a0;
+      addSegment(group, pointAt(frame, tStart, u, y0), pointAt(frame, tEnd, u, y1), 0.5, mat);
+      const steps = 8;
+      for (let k = 0; k <= steps; k++) {
+        const r = k / steps;
+        const t = tStart + (tEnd - tStart) * r;
+        const y = y0 + (y1 - y0) * r;
+        addSegment(group, pointAt(frame, t, u - 1.2, y), pointAt(frame, t, u + 1.2, y), 0.25, mat);
+      }
+    }
+  }
+}
+
+/** Torres de escaleras adjuntas a la fachada: huecas, gruesas y sin techo. */
+function addCircleTowers(group: THREE.Group, frame: Frame, ext: ModuleExterior, ex: ModuleExtent) {
+  const n = ext.circleTowers;
+  const h = ext.circleTowerHeight;
+  const wall = new THREE.MeshLambertMaterial({ color: ext.circleTowerColor, flatShading: true, side: THREE.DoubleSide });
+  const posT: Record<TowerPos, number> = { left: 0.14, center: 0.5, right: 0.86 };
+  const ts = n === 1 ? [posT[ext.circleTowerPos]] : Array.from({ length: n }, (_, k) => (k + 0.5) / n);
+  const WALL = 1.2;
+  for (const t of ts) {
+    const p = surface(frame, t, ex.outer + TOWER_R);
+    const outer = new THREE.Mesh(new THREE.CylinderGeometry(TOWER_R, TOWER_R, h, 24, 1, true), wall);
+    outer.position.set(p.x, h / 2, p.z);
+    group.add(outer);
+    const inner = new THREE.Mesh(new THREE.CylinderGeometry(TOWER_R - WALL, TOWER_R - WALL, h, 24, 1, true), wall);
+    inner.position.set(p.x, h / 2, p.z);
+    group.add(inner);
+    const rim = new THREE.Mesh(new THREE.RingGeometry(TOWER_R - WALL, TOWER_R, 24), wall);
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.set(p.x, h, p.z);
+    group.add(rim);
+  }
 }
 
 /** Segmento recto entre dos puntos del mundo. */
@@ -685,7 +728,7 @@ function addDecoration(
   const mat = new THREE.MeshLambertMaterial({ color: ext.decoColor, flatShading: true });
   const count = Math.max(1, ext.decoCount);
   const ts = Array.from({ length: count }, (_, k) => (k + 0.5) / count);
-  const outerU = (ext.wall !== 'none' ? ex.back + ext.wallDistance + ext.wallThickness : ex.back) + 1;
+  const outerU = ex.outer + 1;
   const h = ext.decoHeight;
   const roofY = ex.top + ext.roofHeight;
 
@@ -824,6 +867,24 @@ function addRoofDecoration(
   }
 }
 
+/** Rectángulo con las cuatro esquinas redondeadas, en el plano (u, y). */
+function roundedRectPoints(u1: number, y1: number, u2: number, y2: number, r: number, seg = 5): THREE.Vector2[] {
+  const corners: [number, number, number][] = [
+    [u2 - r, y2 - r, 0],
+    [u1 + r, y2 - r, Math.PI / 2],
+    [u1 + r, y1 + r, Math.PI],
+    [u2 - r, y1 + r, (3 * Math.PI) / 2],
+  ];
+  const pts: THREE.Vector2[] = [];
+  for (const [cu, cy, a0] of corners) {
+    for (let k = 0; k <= seg; k++) {
+      const a = a0 + (Math.PI / 2) * (k / seg);
+      pts.push(v2(cu + r * Math.cos(a), cy + r * Math.sin(a)));
+    }
+  }
+  return pts;
+}
+
 /** Punto del mundo a una distancia u y una altura y sobre la curva. */
 function pointAt(frame: Frame, t: number, u: number, y: number): THREE.Vector3 {
   const p = surface(frame, t, u);
@@ -867,50 +928,6 @@ export function tallestStand(stands: Stand[], moduleId: ModuleId, anchors: Ancho
     if (!best || top > best.top) best = { stand: st, base, top };
   }
   return best ? { stand: best.stand, base: best.base, frame: standFrame(best.stand, anchors, stands) } : null;
-}
-
-/** Extremos de la fachada de un módulo en el mundo. */
-function wallEnds(moduleId: ModuleId, ext: ModuleExterior, extent: ModuleExtent | null, anchors: Anchors, ringBack: number): THREE.Vector3[] {
-  const u = ringBack + ext.wallDistance;
-  const frame = moduleFrame(moduleId, anchors);
-  return [surface(frame, 0, u), surface(frame, 1, u)];
-}
-
-/** Muros de unión entre fachadas vecinas que no coinciden. */
-export function buildJunctions(
-  exteriors: Record<ModuleId, ModuleExterior>,
-  extents: Record<ModuleId, ModuleExtent | null>,
-  anchors: Anchors,
-  ringBack: number,
-): THREE.Group {
-  const group = new THREE.Group();
-  for (let i = 0; i < RING.length; i++) {
-    const a = RING[i];
-    const b = RING[(i + 1) % RING.length];
-    const ea = exteriors[a];
-    const eb = exteriors[b];
-    if (ea.wall === 'none' || eb.wall === 'none') continue;
-
-    const pa = wallEnds(a, ea, extents[a], anchors, ringBack);
-    const pb = wallEnds(b, eb, extents[b], anchors, ringBack);
-    let best: { p: THREE.Vector3; q: THREE.Vector3; d: number } | null = null;
-    for (const p of pa) {
-      for (const q of pb) {
-        const d = p.distanceTo(q);
-        if (!best || d < best.d) best = { p, q, d };
-      }
-    }
-    if (!best || best.d < 0.5) continue;
-
-    const { p, q, d } = best;
-    const h = Math.max(ea.wallHeight, eb.wallHeight);
-    const t = Math.max(ea.wallThickness, eb.wallThickness);
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(d, h, t), wallMaterial(ea));
-    mesh.position.set((p.x + q.x) / 2, h / 2, (p.z + q.z) / 2);
-    mesh.rotation.y = Math.atan2(-(q.z - p.z), q.x - p.x);
-    group.add(mesh);
-  }
-  return group;
 }
 
 /** Zona de selección de un módulo, siguiendo su curva. */

@@ -13,6 +13,72 @@ export const MODULE_NAMES: Record<ModuleId, string> = {
   se: 'Esquina sureste',
 };
 
+export interface Option<T extends string> {
+  value: T;
+  label: string;
+}
+
+/* ---------- Pilares de grada ---------- */
+
+export type ColumnMode = 'none' | 'inner' | 'outer';
+
+export const COLUMN_OPTIONS: Option<ColumnMode>[] = [
+  { value: 'none', label: 'Sin pilares' },
+  { value: 'inner', label: 'Pilares interiores' },
+  { value: 'outer', label: 'Pilares exteriores' },
+];
+
+/** Convierte el campo antiguo «columns» (booleano) en el modo actual. */
+export function migrateColumns(raw: { columns?: unknown }): ColumnMode {
+  if (raw.columns === 'none' || raw.columns === 'inner' || raw.columns === 'outer') return raw.columns;
+  return raw.columns === true ? 'outer' : 'none';
+}
+
+/* ---------- Fachada por grada ---------- */
+
+export type FacadeKind = 'none' | 'pillars' | 'solid' | 'vpanels' | 'hpanels';
+
+export const FACADE_OPTIONS: Option<FacadeKind>[] = [
+  { value: 'none', label: 'Sin fachada' },
+  { value: 'pillars', label: 'Pilares exteriores' },
+  { value: 'solid', label: 'Fachada lisa' },
+  { value: 'vpanels', label: 'Paneles verticales' },
+  { value: 'hpanels', label: 'Paneles horizontales' },
+];
+
+/** Fachada de una grada. Su altura es la de la propia grada. */
+export interface StandFacade {
+  kind: FacadeKind;
+  /** Grosor de la fachada desde el borde trasero de la grada hacia fuera (m). */
+  depth: number;
+  color: string;
+  /** Segundo color, para paneles alternados. */
+  colorB: string;
+  /** Número de divisiones de los paneles. */
+  count: number;
+}
+
+export const FACADE_RANGES = { depth: [0.5, 40] as [number, number], count: [2, 30] as [number, number] };
+
+export const DEFAULT_FACADE: StandFacade = {
+  kind: 'none',
+  depth: 2,
+  color: '#9aa3ad',
+  colorB: '#e5e7eb',
+  count: 8,
+};
+
+/** Fachada equivalente a un valor antiguo de fachada por módulo (migración). */
+export function legacyFacade(wall: unknown, distance: unknown, color: unknown): StandFacade | null {
+  const map: Record<string, FacadeKind> = {
+    concrete: 'solid', glass: 'solid', brick: 'solid', windows: 'hpanels', panels: 'vpanels',
+  };
+  if (typeof wall !== 'string' || !map[wall]) return null;
+  const depth = typeof distance === 'number' ? Math.min(40, Math.max(0.5, distance)) : 2;
+  const c = typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color) ? color : DEFAULT_FACADE.color;
+  return { ...DEFAULT_FACADE, kind: map[wall], depth, color: c };
+}
+
 /** Grada independiente. */
 export interface Stand {
   id: string;
@@ -26,12 +92,14 @@ export interface Stand {
   color: string;
   /** Desplazamiento respecto a la línea de banda: + hacia fuera, − hacia el campo. */
   offset: number;
-  /** Pilares de sustentación (solo en tribunas elevadas). */
-  columns: boolean;
+  /** Pilares de sustentación bajo la grada (solo en tribunas elevadas). */
+  columns: ColumnMode;
   /** Barandilla en el frente de la grada. */
   railing: boolean;
   /** Curvatura de la grada (solo en módulos rectos). */
   curve: CurveType;
+  /** Fachada de la grada. */
+  facade: StandFacade;
 }
 
 export type CurveType = 'straight' | 'mid' | 'full';
@@ -51,12 +119,12 @@ export function migrateCurve(raw: { curve?: unknown; curved?: unknown }): CurveT
   return raw.curved === true ? 'full' : 'straight';
 }
 
-export type WallType = 'none' | 'concrete' | 'glass' | 'brick' | 'windows' | 'panels';
 export type RoofType = 'none' | 'canopy' | 'cantilever' | 'arch';
 export type FloodType = 'none' | 'mast' | 'bar';
-export type ScoreType = 'none' | 'marcador' | 'pantalla';
+export type ScoreType = 'none' | 'marcador' | 'pantalla' | 'marquesina';
 export type DecoType = 'none' | 'pillars' | 'towers' | 'struts' | 'arches';
 export type RoofDecoType = 'none' | 'trusses' | 'masts' | 'lattice';
+export type TowerPos = 'left' | 'center' | 'right';
 
 export const ROOF_DECO_OPTIONS: Option<RoofDecoType>[] = [
   { value: 'none', label: 'Sin decoración' },
@@ -65,18 +133,10 @@ export const ROOF_DECO_OPTIONS: Option<RoofDecoType>[] = [
   { value: 'lattice', label: 'Celosía' },
 ];
 
-export interface Option<T extends string> {
-  value: T;
-  label: string;
-}
-
-export const WALL_OPTIONS: Option<WallType>[] = [
-  { value: 'none', label: 'Sin fachada' },
-  { value: 'concrete', label: 'Hormigón liso' },
-  { value: 'glass', label: 'Cristal' },
-  { value: 'brick', label: 'Ladrillo' },
-  { value: 'windows', label: 'Ventanas corridas' },
-  { value: 'panels', label: 'Paneles verticales' },
+export const TOWER_POS_OPTIONS: Option<TowerPos>[] = [
+  { value: 'left', label: 'Izquierda' },
+  { value: 'center', label: 'Centro' },
+  { value: 'right', label: 'Derecha' },
 ];
 
 export const ROOF_OPTIONS: Option<RoofType>[] = [
@@ -104,17 +164,11 @@ export const SCORE_OPTIONS: Option<ScoreType>[] = [
   { value: 'none', label: 'Sin marcador' },
   { value: 'marcador', label: 'Marcador clásico' },
   { value: 'pantalla', label: 'Pantalla LED' },
+  { value: 'marquesina', label: 'Marcador de marquesina' },
 ];
 
-/** Exteriores y detalles de un módulo. */
+/** Exteriores y detalles de un módulo. La fachada va por grada. */
 export interface ModuleExterior {
-  wall: WallType;
-  wallHeight: number;
-  /** Distancia de la fachada al borde trasero de las gradas (m). */
-  wallDistance: number;
-  wallThickness: number;
-  wallColor: string;
-
   roof: RoofType;
   /** Altura de la cubierta sobre la grada más alta (m). */
   roofHeight: number;
@@ -124,11 +178,11 @@ export interface ModuleExterior {
   /** Extensión de la cubierta hacia el interior, sobre el campo (m). */
   roofInset: number;
   roofThickness: number;
-  /** Inclinación (voladizo) o flecha (cubierta curva), en grados. */
+  /** Flecha de la cubierta curva (grados). */
   roofSlope: number;
+  /** Inclinación del voladizo (°). Positivo: el borde exterior sube. Negativo: baja. */
+  roofAngle: number;
   roofColumns: boolean;
-  /** Marcador sobre la marquesina. */
-  roofScore: boolean;
   roofColor: string;
 
   flood: FloodType;
@@ -150,15 +204,18 @@ export interface ModuleExterior {
   roofDecoCount: number;
   roofDecoHeight: number;
   roofDecoColor: string;
+
+  /** Escaleras exteriores en zigzag, tramos de 5 m. */
+  stairs: boolean;
+  /** Torres circulares adjuntas a la fachada (0 a 3). */
+  circleTowers: number;
+  circleTowerHeight: number;
+  /** Posición cuando hay una sola torre. */
+  circleTowerPos: TowerPos;
+  circleTowerColor: string;
 }
 
 export const DEFAULT_EXTERIOR: ModuleExterior = {
-  wall: 'none',
-  wallHeight: 14,
-  wallDistance: 4,
-  wallThickness: 1.5,
-  wallColor: '#9aa3ad',
-
   roof: 'none',
   roofHeight: 4,
   roofOverhang: 4,
@@ -166,8 +223,8 @@ export const DEFAULT_EXTERIOR: ModuleExterior = {
   roofInset: 0,
   roofThickness: 1,
   roofSlope: 12,
+  roofAngle: 0,
   roofColumns: false,
-  roofScore: false,
   roofColor: '#e5e7eb',
 
   flood: 'none',
@@ -188,19 +245,23 @@ export const DEFAULT_EXTERIOR: ModuleExterior = {
   roofDecoCount: 4,
   roofDecoHeight: 6,
   roofDecoColor: '#9ca3af',
+
+  stairs: false,
+  circleTowers: 0,
+  circleTowerHeight: 20,
+  circleTowerPos: 'center',
+  circleTowerColor: '#e5e7eb',
 };
 
 /** Rangos numéricos válidos de los exteriores. */
 export const EXTERIOR_RANGES: Partial<Record<keyof ModuleExterior, [number, number]>> = {
-  wallHeight: [4, 40],
-  wallDistance: [0, 30],
-  wallThickness: [0.5, 4],
   roofHeight: [1, 20],
   roofOverhang: [0, 12],
   roofWidth: [0, 80],
   roofInset: [0, 40],
   roofThickness: [0.5, 3],
   roofSlope: [0, 25],
+  roofAngle: [-20, 20],
   floodCount: [1, 4],
   floodHeight: [8, 60],
   scoreHeight: [4, 40],
@@ -209,8 +270,9 @@ export const EXTERIOR_RANGES: Partial<Record<keyof ModuleExterior, [number, numb
   decoHeight: [4, 60],
   roofDecoCount: [1, 12],
   roofDecoHeight: [2, 20],
+  circleTowers: [0, 3],
+  circleTowerHeight: [8, 60],
 };
-
 
 /* ---------- Entorno ---------- */
 
@@ -273,4 +335,6 @@ export interface AppState {
   roadKind: RoadKind;
 }
 
-export type StandPatch = Partial<Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing' | 'curve'>>;
+export type StandPatch = Partial<
+  Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing' | 'curve' | 'facade'>
+>;

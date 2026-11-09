@@ -8,7 +8,9 @@ import {
   Lighting,
   BuildingKind,
   DEFAULT_EXTERIOR,
+  DEFAULT_FACADE,
   EXTERIOR_RANGES,
+  migrateColumns,
   MODULE_IDS,
   ModuleExterior,
   ModuleId,
@@ -18,6 +20,7 @@ import {
   StandPatch,
 } from './types';
 import { LIMITS, PALETTE, STORAGE_KEY } from './config';
+import { resolveFacade, sanitizeFacade } from './migrate';
 import { cellKey, sanitizeEnvironment } from './environment';
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
@@ -74,7 +77,13 @@ function load(): AppState {
     for (const id of MODULE_IDS) exteriors[id] = { ...DEFAULT_EXTERIOR, ...(saved[id] ?? {}) };
     const stands = (parsed.stands ?? [])
       .filter(isValidStand)
-      .map((s) => ({ ...s, columns: s.columns === true, railing: s.railing === true, curve: migrateCurve(s) }));
+      .map((s) => ({
+        ...s,
+        columns: migrateColumns(s),
+        railing: s.railing === true,
+        curve: migrateCurve(s),
+        facade: resolveFacade(s, parsed.exteriors?.[s.moduleId] as any),
+      }));
     return {
       stands,
       exteriors,
@@ -160,9 +169,10 @@ export const actions = {
         tilt: 25,
         offset: 0,
         color: PALETTE[s.stands.length % PALETTE.length],
-        columns: false,
+        columns: 'none',
         railing: false,
         curve: 'straight',
+        facade: { ...DEFAULT_FACADE },
       };
       return { stands: [...s.stands, stand], selectedModule: m, selectedStandId: stand.id };
     });
@@ -178,6 +188,10 @@ export const actions = {
         if (patch.offset !== undefined) n.offset = clamp(patch.offset, LIMITS.offset.min, LIMITS.offset.max);
         if (patch.color !== undefined) n.color = patch.color;
         if (patch.columns !== undefined) n.columns = patch.columns;
+        if (patch.facade !== undefined) {
+          const f = sanitizeFacade(patch.facade);
+          if (f) n.facade = f;
+        }
         if (patch.railing !== undefined) n.railing = patch.railing;
         if (patch.curve !== undefined) n.curve = patch.curve;
         return n;
@@ -243,6 +257,55 @@ export const actions = {
     commit((s) => ({
       exteriors: { ...s.exteriors, [moduleId]: { ...s.exteriors[moduleId], ...sanitize(patch) } },
     }));
+  },
+
+  /** Copia solo algunos apartados (cubierta, iluminación, decoración…) a todos los módulos. */
+  applyExteriorKeys(moduleId: ModuleId, keys: (keyof ModuleExterior)[]) {
+    commit((s) => {
+      const src = s.exteriors[moduleId];
+      const exteriors = { ...s.exteriors };
+      const patch: Record<string, unknown> = {};
+      for (const k of keys) patch[k] = src[k];
+      for (const m of MODULE_IDS) exteriors[m] = { ...s.exteriors[m], ...(patch as Partial<ModuleExterior>) };
+      return { exteriors };
+    });
+  },
+
+  /**
+   * Aplica un cambio de grada (fachada, pilares, barandilla, color) a las gradas del mismo módulo
+   * o a las del mismo nivel en todos los módulos.
+   */
+  applyStandPatch(id: string, patch: StandPatch, scope: 'module' | 'all') {
+    commit((s) => {
+      const src = s.stands.find((x) => x.id === id);
+      if (!src) return {};
+      const targets = new Set<string>();
+      if (scope === 'module') {
+        for (const st of s.stands) if (st.moduleId === src.moduleId) targets.add(st.id);
+      } else {
+        for (const m of MODULE_IDS) {
+          const list = s.stands.filter((x) => x.moduleId === m).sort((a, b) => a.order - b.order);
+          const level = s.stands
+            .filter((x) => x.moduleId === src.moduleId)
+            .sort((a, b) => a.order - b.order)
+            .findIndex((x) => x.id === id);
+          if (list[level]) targets.add(list[level].id);
+        }
+      }
+      const stands = s.stands.map((st) => {
+        if (!targets.has(st.id)) return st;
+        const n = { ...st };
+        if (patch.columns !== undefined) n.columns = patch.columns;
+        if (patch.railing !== undefined) n.railing = patch.railing;
+        if (patch.color !== undefined) n.color = patch.color;
+        if (patch.facade !== undefined) {
+          const f = sanitizeFacade(patch.facade);
+          if (f) n.facade = f;
+        }
+        return n;
+      });
+      return { stands };
+    });
   },
 
   applyExteriorToAll(moduleId: ModuleId) {
