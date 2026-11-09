@@ -5,7 +5,6 @@ import { MODULE_IDS, ModuleId } from '../types';
 import {
   Anchors,
   buildApron,
-  buildJunctions,
   buildModuleStructures,
   buildStandGroup,
   computeAnchors,
@@ -228,7 +227,7 @@ export function StadiumView() {
       for (const s of st.stands) {
         alive.add(s.id);
         const base = bases.get(s.id) ?? 0;
-        const key = `${s.moduleId}|${s.height}|${s.tilt}|${s.offset}|${base}|${s.columns}|${s.railing}|${s.curve}|${anchorKey}`;
+        const key = `${s.moduleId}|${s.height}|${s.tilt}|${s.offset}|${base}|${s.columns}|${s.railing}|${s.curve}|${JSON.stringify(s.facade)}|${anchorKey}`;
         let entry = entries.get(s.id);
 
         if (!entry || entry.key !== key) {
@@ -260,45 +259,23 @@ export function StadiumView() {
         }
       }
 
-      // Anchura común de las fachadas: la del borde más alejado del estadio
-      const extentsAll = {} as Record<ModuleId, ReturnType<typeof moduleExtent>>;
-      for (const id of MODULE_IDS) extentsAll[id] = moduleExtent(st.stands, id);
-      let ringBack = 10;
-      for (const id of MODULE_IDS) {
-        const e = extentsAll[id];
-        if (e && e.back > ringBack) ringBack = e.back;
-      }
-
       // Exteriores por módulo
       for (const id of MODULE_IDS) {
         const ext = st.exteriors[id];
         const extent = moduleExtent(st.stands, id);
         const tallest = tallestStand(st.stands, id, anchors);
-        const key = JSON.stringify([ext, extent, anchorKey, tallest, ringBack]);
+        const key = JSON.stringify([ext, extent, anchorKey, tallest]);
         const current = structures.get(id);
         if (!current || current.key !== key) {
           if (current) {
             structureGroup.remove(current.group);
             disposeGroup(current.group);
           }
-          const group = buildModuleStructures(id, ext, extent, anchors, tallest, ringBack);
+          const group = buildModuleStructures(id, ext, extent, anchors, tallest);
           shadowsOn(group);
           structureGroup.add(group);
           structures.set(id, { group, key });
         }
-      }
-
-      // Muros de unión
-      const extents = {} as Record<ModuleId, ReturnType<typeof moduleExtent>>;
-      for (const id of MODULE_IDS) extents[id] = moduleExtent(st.stands, id);
-      const jKey = JSON.stringify([st.exteriors, extents, anchorKey]);
-      if (jKey !== junctionKey) {
-        junctionKey = jKey;
-        disposeGroup(junctionGroup);
-        junctionGroup.clear();
-        const jg = buildJunctions(st.exteriors, extents, anchors, ringBack);
-        shadowsOn(jg);
-        junctionGroup.add(jg);
       }
 
       // Entorno: cuadrícula y celdas pintadas

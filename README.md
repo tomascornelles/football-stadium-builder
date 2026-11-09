@@ -2,7 +2,7 @@
 
 Constructor visual de estadios de fútbol en estética pixel art isométrica. Es una aplicación web progresiva (PWA) que funciona en escritorio, tablet y móvil, y puede instalarse y usarse sin conexión tras la primera carga.
 
-**Versión actual:** 0.23.1
+**Versión actual:** 0.24.0
 
 ## Características
 
@@ -11,12 +11,14 @@ Constructor visual de estadios de fútbol en estética pixel art isométrica. Es
 - **Gradas independientes** con altura, inclinación real (la pendiente se calcula geométricamente), desplazamiento, color, pilares y barandilla.
 - **Apilado de tribunas**: las gradas superiores se elevan sobre la altura de las inferiores, sostenidas por pilares.
 - **Copiar gradas** a otro módulo o a todos a la vez.
+- **Fachada por grada**: la fachada sigue el perfil escalonado, con la altura de su grada y una profundidad de 0 a 40 m.
+  - Tipos: sin fachada (tableta de 0,5 m), pilares exteriores, lisa, paneles verticales o paneles horizontales.
+- **Pilares de grada**: interiores, exteriores o ninguno.
 - **Exteriores por módulo**:
-  - Fachadas: hormigón, cristal, ladrillo, ventanas corridas y paneles verticales.
-  - Cubiertas: marquesina plana, voladizo inclinado y cubierta curva.
+  - Cubiertas: marquesina plana, voladizo con inclinación de −20° a 20° y cubierta curva.
+  - Escaleras exteriores en zigzag (3 en laterales y fondos, 1 en esquinas) y torres circulares adjuntas (0 a 3).
   - Iluminación: torres de focos o barra en cubierta.
   - Marcador clásico o pantalla LED.
-- **Muros de unión** automáticos entre fachadas vecinas que no coinciden.
 - **Cámara ortográfica** isométrica con rotación de 90° en 90°.
 - **Guardado y carga**:
   - Biblioteca local en el navegador.
@@ -46,7 +48,7 @@ src/
 ├── store.ts               Estado global, acciones y persistencia local
 ├── persistence.ts         Formato de archivo, validación, biblioteca y descarga
 ├── geometry/
-│   └── modules.ts         Geometría: gradas, pilares, fachadas, cubiertas, focos, muros de unión
+│   └── modules.ts         Geometría: gradas, pilares, fachadas, cubiertas, focos, escaleras, torres
 ├── three/
 │   ├── StadiumView.tsx    Escena Three.js, cámara, selección y rotación
 │   └── pitch.ts           Construcción del campo
@@ -95,7 +97,8 @@ Al importar, el archivo se valida y los valores fuera de rango se ajustan a los 
 
 - La biblioteca de estadios guardados usa `localStorage`, con capacidad limitada. Para estadios grandes o copias de seguridad, conviene exportar a archivo.
 - Las esquinas curvas estiran las texturas de ladrillo y ventanas a lo largo del arco.
-- Los muros de unión son cajas rectas, así que en uniones muy oblicuas pueden verse angulares.
+- Las fachadas de gradas vecinas no se unen automáticamente en las esquinas: cada grada tiene su propia profundidad.
+- Las torres circulares y las escaleras pueden solaparse si se colocan en la misma zona del módulo.
 - Las cubiertas y la iluminación se calculan por módulo, sin coordinarse con los módulos vecinos.
 
 ## Documentación para agentes

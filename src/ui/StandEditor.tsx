@@ -1,17 +1,32 @@
-import { ColorPicker } from './ColorPicker';
 import { useState } from 'react';
+import { ColorPicker } from './ColorPicker';
 import { actions, getState } from '../store';
 import { CORNER_TEMPLATE_LABEL, computeAnchors, cornerTemplateOf } from '../geometry/modules';
 import { LIMITS } from '../config';
-import { CURVE_OPTIONS, CurveType, MODULE_IDS, MODULE_NAMES, ModuleId, Stand } from '../types';
+import {
+  COLUMN_OPTIONS,
+  CURVE_OPTIONS,
+  CurveType,
+  FACADE_OPTIONS,
+  FacadeKind,
+  MODULE_IDS,
+  MODULE_NAMES,
+  ModuleId,
+  Stand,
+  StandFacade,
+} from '../types';
 import { Slider } from './Slider';
 import { Toggle } from './Toggle';
+import { ApplyRow, ColorField, Select } from './fields';
 
 const CORNER_IDS: ModuleId[] = ['nw', 'ne', 'sw', 'se'];
 
 export function StandEditor({ stand }: { stand: Stand }) {
   const [target, setTarget] = useState<ModuleId | ''>('');
   const corner = CORNER_IDS.includes(stand.moduleId);
+  const f = stand.facade;
+  const panels = f.kind === 'vpanels' || f.kind === 'hpanels';
+  const setFacade = (patch: Partial<StandFacade>) => actions.updateStand(stand.id, { facade: { ...f, ...patch } });
 
   return (
     <section className="editor">
@@ -27,7 +42,6 @@ export function StandEditor({ stand }: { stand: Stand }) {
         min={LIMITS.tilt.min} max={LIMITS.tilt.max} step={LIMITS.tilt.step}
         onChange={(v) => actions.updateStand(stand.id, { tilt: v })}
       />
-
       <Slider
         label="Desplazamiento" unit="m" hint="(+ fuera / − dentro)" value={stand.offset}
         min={LIMITS.offset.min} max={LIMITS.offset.max} step={LIMITS.offset.step}
@@ -39,38 +53,64 @@ export function StandEditor({ stand }: { stand: Stand }) {
           se ajusta a las gradas vecinas.
         </p>
       ) : (
-        <label className="field-row inline">
-          <span>Curvatura</span>
-          <select
-            value={stand.curve}
-            onChange={(e) => actions.updateStand(stand.id, { curve: e.target.value as CurveType })}
-          >
-            {CURVE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </label>
+        <Select<CurveType>
+          label="Curvatura" value={stand.curve} options={CURVE_OPTIONS}
+          onChange={(v) => actions.updateStand(stand.id, { curve: v })}
+        />
       )}
 
-      <label className="field-row inline">
-        <span>Color</span>
-        <ColorPicker
-          
-          value={stand.color}
-          onChange={(v) => actions.updateStand(stand.id, { color: v })}
-        />
-      </label>
+      <ColorField label="Color" value={stand.color} onChange={(v) => actions.updateStand(stand.id, { color: v })} />
 
-      <Toggle
-        label="Pilares"
-        checked={stand.columns}
-        onChange={(v) => actions.updateStand(stand.id, { columns: v })}
-      />
-      <Toggle
-        label="Barandilla"
-        checked={stand.railing}
-        onChange={(v) => actions.updateStand(stand.id, { railing: v })}
-      />
+      <details className="sub" open>
+        <summary>Fachada</summary>
+        <Select<FacadeKind>
+          label="Tipo" value={f.kind} options={FACADE_OPTIONS}
+          onChange={(v) => setFacade({ kind: v })}
+        />
+        {f.kind !== 'none' && (
+          <>
+            <Slider
+              label="Profundidad" unit="m" hint="(0 = a ras)" value={f.depth}
+              min={0} max={40} step={0.5} onChange={(v) => setFacade({ depth: v })}
+            />
+            {panels && (
+              <Slider
+                label="Divisiones" unit="" value={f.count} min={2} max={30} step={1}
+                onChange={(v) => setFacade({ count: v })}
+              />
+            )}
+            <ColorField label={panels ? 'Color 1' : 'Color'} value={f.color} onChange={(v) => setFacade({ color: v })} />
+            {panels && (
+              <ColorField label="Color 2" value={f.colorB} onChange={(v) => setFacade({ colorB: v })} />
+            )}
+          </>
+        )}
+        <ApplyRow
+          moduleLabel="Fachada a las gradas del módulo"
+          onModule={() => actions.applyStandPatch(stand.id, { facade: f }, 'module')}
+          allLabel="Fachada a todos los módulos"
+          onAll={() => actions.applyStandPatch(stand.id, { facade: f }, 'all')}
+        />
+      </details>
+
+      <details className="sub">
+        <summary>Pilares y barandilla</summary>
+        <Select
+          label="Pilares" value={stand.columns} options={COLUMN_OPTIONS}
+          onChange={(v) => actions.updateStand(stand.id, { columns: v })}
+        />
+        <Toggle
+          label="Barandilla"
+          checked={stand.railing}
+          onChange={(v) => actions.updateStand(stand.id, { railing: v })}
+        />
+        <ApplyRow
+          moduleLabel="Pilares y barandilla al módulo"
+          onModule={() => actions.applyStandPatch(stand.id, { columns: stand.columns, railing: stand.railing }, 'module')}
+          allLabel="Pilares y barandilla a todos los módulos"
+          onAll={() => actions.applyStandPatch(stand.id, { columns: stand.columns, railing: stand.railing }, 'all')}
+        />
+      </details>
 
       <div className="actions">
         <button className="btn" onClick={() => actions.duplicateStand(stand.id)}>Duplicar</button>
