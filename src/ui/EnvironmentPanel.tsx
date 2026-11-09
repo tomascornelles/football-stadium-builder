@@ -1,8 +1,16 @@
 import { ColorPicker } from './ColorPicker';
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore, type ReactElement } from 'react';
 import { actions, getState, subscribe } from '../store';
 import { BUILDING_OPTIONS, ENV_TOOLS, ROAD_OPTIONS } from '../types';
 import { confirmDialog } from './dialog';
+
+const TOOL_ICONS: Record<string, ReactElement> = {
+  road: <path d="M7 3v18M17 3v18M12 4v3M12 10.5v3M12 17v3" />,
+  tree: <><circle cx="12" cy="9" r="5.5" /><path d="M12 14.5V21" /></>,
+  building: <><rect x="5" y="3" width="14" height="18" rx="1.5" /><path d="M9 7h1.5M13.5 7H15M9 11h1.5M13.5 11H15M9 15h1.5M13.5 15H15" /></>,
+  water: <path d="M2 9c2.5-2 5-2 7.5 0s5 2 7.5 0 3-1.6 5-.5M2 15c2.5-2 5-2 7.5 0s5 2 7.5 0 3-1.6 5-.5" />,
+  erase: <path d="M6 6l12 12M18 6L6 18" />,
+};
 
 interface EnvironmentPanelProps {
   open: boolean;
@@ -25,15 +33,19 @@ export function EnvironmentPanel({ open, setOpen }: EnvironmentPanelProps) {
       <div className="panel-body">
         <section>
           <h2 className="section-title">Herramienta</h2>
-          <div className="tool-grid">
+          <div className="tool-bar" role="group" aria-label="Herramientas del entorno">
             {ENV_TOOLS.map((t) => (
               <button
                 key={t.value}
-                className={`tool-btn ${state.tool === t.value ? 'active' : ''}`}
+                type="button"
+                className={`tool-bar-btn tool-${t.value} ${state.tool === t.value ? 'active' : ''}`}
+                aria-pressed={state.tool === t.value}
+                aria-label={t.label}
+                title={t.label}
                 onClick={() => actions.setTool(t.value)}
               >
-                <span className="tool-swatch" style={{ background: t.color }} />
-                {t.label}
+                <svg viewBox="0 0 24 24" aria-hidden="true">{TOOL_ICONS[t.value]}</svg>
+                <span>{t.label}</span>
               </button>
             ))}
           </div>

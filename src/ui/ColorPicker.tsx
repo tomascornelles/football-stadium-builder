@@ -14,7 +14,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
     <div className="color-picker">
       <button
         type="button"
-        className="swatch-btn active"
+        className="swatch-btn active swatch-current"
         style={{ background: value }}
         aria-label={`Color ${value}. Pulsa para cambiar`}
         aria-expanded={open}

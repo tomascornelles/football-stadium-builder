@@ -871,3 +871,90 @@ input[type="text"]:focus-visible {
   opacity: 0.9;
 }
 .btn.primary { color: var(--bg); }
+
+/* ==========================================================================
+   v0.28.0 · Botones de vista con iconos de trazo, selector día/noche
+   translúcido, muestra de color actual pequeña y barra de herramientas
+   del entorno con botones unidos
+   ========================================================================== */
+
+/* Botones redondos: iconos de trazo, sin relleno (antes se rellenaban y se veían como manchas) */
+.round-btn svg { width: 22px; height: 22px; fill: none; }
+.round-btn svg *,
+.round-btn svg path,
+.round-btn svg line,
+.round-btn svg circle,
+.round-btn svg rect,
+.round-btn svg polyline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.round-btn.active { background: var(--accent); color: #FFFFFF; border-color: transparent; }
+
+/* Selector día / noche: vidrio translúcido con texto claro legible */
+.lighting-seg {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.lighting-seg button {
+  flex: none; background: transparent; border: none; box-shadow: none;
+  color: rgba(244, 238, 226, 0.82); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  padding: 5px 14px; min-height: 30px; font-size: 13px; font-weight: 500;
+}
+.lighting-seg button:hover { color: #FFFFFF; }
+.lighting-seg button.active {
+  background: rgba(255, 255, 255, 0.82); color: #0A2E38; font-weight: 600; text-shadow: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* Selector de color: la muestra del color actual es pequeña; la paleta sigue en rejilla */
+.color-picker { width: 100%; align-items: flex-start; }
+.color-picker .swatch-btn.swatch-current {
+  width: 32px; min-height: 32px; height: 32px; aspect-ratio: auto; flex: none;
+}
+.color-picker .swatches { width: 100%; }
+
+/* Barra de herramientas del entorno: botones unidos con icono y texto */
+.tool-bar {
+  display: flex; align-items: stretch; width: 100%;
+  background: var(--control);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.tool-bar-btn {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 8px 2px; min-height: 58px;
+  font: inherit; font-size: 12px; font-weight: 500; color: var(--text);
+  background: transparent; border: none; border-radius: 0; box-shadow: none;
+  border-right: 1px solid var(--stroke);
+  cursor: pointer; transition: background 0.2s, color 0.2s;
+}
+.tool-bar-btn:last-child { border-right: none; }
+.tool-bar-btn:hover { background: rgba(22, 105, 122, 0.08); }
+.tool-bar-btn svg {
+  width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.tool-bar-btn.active {
+  background: rgba(22, 105, 122, 0.16);
+  color: var(--accent-strong, #E14A3A);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+/* Borrar: fondo naranja y una X, siempre visible */
+.tool-bar-btn.tool-erase {
+  background: var(--accent-2, #FFA62B); color: #3A1E00;
+}
+.tool-bar-btn.tool-erase:hover { background: #FF9A14; }
+.tool-bar-btn.tool-erase.active {
+  background: #FF9A14; color: #2B1400;
+  box-shadow: inset 0 0 0 2px #1D2729;
+}
