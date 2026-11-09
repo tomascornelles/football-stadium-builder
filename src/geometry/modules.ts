@@ -280,14 +280,17 @@ export function standFrame(stand: Stand, anchors: Anchors, stands: Stand[]): Fra
     const rank = rankOf(stand, stands);
     const pf = neighborFrame(prev, rank, stands, anchors);
     const nf = neighborFrame(next, rank, stands, anchors);
-    const A = pf.at(1).p;
+    // El desplazamiento de la esquina mueve sus extremos a lo largo de la normal del vecino
+    // (no la curva entera): así una curva cerrada no se cruza consigo misma al alejarse
+    const off = cornerExtraOffset(stand, stands);
+    const A = pf.at(1).p.clone().addScaledVector(pf.at(1).n, off);
     const tA = pf.tan(1);
-    const B = nf.at(0).p;
+    const B = nf.at(0).p.clone().addScaledVector(nf.at(0).n, off);
     const tB = nf.tan(0);
     const k = CORNER_HANDLE[cornerTemplate(pf.curved, nf.curved)] * A.distanceTo(B);
     const P1 = A.clone().addScaledVector(tA, k);
     const P2 = B.clone().addScaledVector(tB, -k);
-    return offsetFrame(bezierFrame(A, P1, P2, B, true), cornerExtraOffset(stand, stands));
+    return bezierFrame(A, P1, P2, B, true);
   }
   const [a, b] = straightEnds(stand.moduleId, STAND_GAP + stand.offset);
   return buildFrame(a, b, CURVE_BULGE_BY[stand.curve as CurveType]);

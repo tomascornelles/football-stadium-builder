@@ -277,7 +277,7 @@ function buildWater(env: Record<string, EnvCell>): THREE.Group {
 /**
  * Reglas de la red viaria:
  * - Glorieta: anillo de 8 vías alrededor de una celda libre.
- * - Aparcamiento: bloque de 3 × 3 vías con como máximo un acceso a la red.
+ * - Aparcamiento: cualquier bloque de 2 × 2 vías o más.
  * - Cruce: vía con 3 o 4 vías vecinas (en T o en X). Nunca es aparcamiento.
  * - Vía: el resto de vías.
  */
@@ -293,19 +293,9 @@ export function classifyRoads(env: Record<string, EnvCell>) {
     const [i, j] = key.split(',').map(Number);
     if (DIRS.filter(([dx, dz]) => via(i + dx, j + dz)).length >= 3) junction.add(key);
 
-    let full3 = true;
-    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) if (!via(i + di, j + dj)) full3 = false;
-    if (!full3) continue;
-    // Accesos: vías que tocan el bloque desde fuera, por cualquiera de sus cuatro lados
-    let access = 0;
-    for (let d = -1; d <= 1; d++) {
-      if (via(i + d, j - 2)) access++;
-      if (via(i + d, j + 2)) access++;
-      if (via(i - 2, j + d)) access++;
-      if (via(i + 2, j + d)) access++;
-    }
-    if (access <= 1) {
-      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) parking.add(cellKey(i + di, j + dj));
+    // Cualquier bloque de 2 × 2 vías o más es aparcamiento: si la celda inicia un 2 × 2 completo, se marca
+    if (via(i + 1, j) && via(i, j + 1) && via(i + 1, j + 1)) {
+      for (const [di, dj] of [[0, 0], [1, 0], [0, 1], [1, 1]]) parking.add(cellKey(i + di, j + dj));
     }
   }
 

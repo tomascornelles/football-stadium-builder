@@ -2,12 +2,12 @@
 
 Constructor visual de estadios de fútbol en estética pixel art isométrica. Es una aplicación web progresiva (PWA) que funciona en escritorio, tablet y móvil, y puede instalarse y usarse sin conexión tras la primera carga.
 
-**Versión actual:** 0.26.0
+**Versión actual:** 0.26.1
 
 ## Reglas de la red viaria
 
 - **Cruce:** vía con 3 o 4 vías vecinas (T o X). Lleva paso de peatones y línea de detención en cada brazo. Nunca es aparcamiento.
-- **Aparcamiento:** bloque de 3 × 3 vías con como máximo un acceso a la red.
+- **Aparcamiento:** cualquier bloque de 2 × 2 vías o más.
 - **Glorieta:** anillo de 8 vías alrededor de una celda libre.
 - **Vía:** el resto. Si dos vías tienen anchura distinta, el brazo se ensancha con transición suave.
 
