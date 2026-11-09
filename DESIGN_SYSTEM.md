@@ -85,3 +85,9 @@ El césped, el asfalto, las aceras y los edificios del escenario mantienen sus c
 - No añadir avisos o textos de ayuda que el usuario no haya pedido.
 - Los estados de error usan rojo, no el acento.
 - Las superficies de la interfaz siempre son glass. No usar fondos sólidos en paneles ni menús.
+
+## Tema claro (vigente desde 0.24.0)
+
+Fondo arena (`#EFE8DC` → `#E2D6C0`), paneles blancos esmerilados (`rgba(255,255,255,.94)`), texto petróleo oscuro (`#0A2E38`) y texto secundario (`#4F6B72`). Acción principal y pastilla activa en petróleo (`#0F4C5C`) con texto blanco. El asa del panel sigue en verde (`#27ae60`).
+
+Se aplica con las reglas al final de `src/styles.css`, que sustituyen las del tema oscuro.
