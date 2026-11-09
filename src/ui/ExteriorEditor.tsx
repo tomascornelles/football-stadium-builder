@@ -40,11 +40,14 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
     <section className="editor">
       <h2 className="section-title">Exteriores y detalles</h2>
 
+      {/* Orden por tipo de entrada: selectores, deslizadores, interruptores y colores */}
       <details className="sub" {...acc('Cubierta')}>
         <summary>Cubierta</summary>
         <Select label="Tipo" value={ext.roof} options={ROOF_OPTIONS} onChange={(v) => set({ roof: v })} />
         {ext.roof !== 'none' && (
           <>
+            <Select label="Decoración sobre cubierta" value={ext.roofDeco} options={ROOF_DECO_OPTIONS}
+              onChange={(v) => set({ roofDeco: v })} />
             <Slider label="Altura sobre gradas" unit="m" value={ext.roofHeight} min={1} max={20} step={0.5}
               onChange={(v) => set({ roofHeight: v })} />
             <Slider label="Ancho (0 = automático)" unit="m" value={ext.roofWidth} min={0} max={80} step={1}
@@ -63,19 +66,19 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
               <Slider label="Flecha" unit="°" value={ext.roofSlope} min={0} max={25} step={1}
                 onChange={(v) => set({ roofSlope: v })} />
             )}
-            <Toggle label="Pilares de apoyo" checked={ext.roofColumns} onChange={(v) => set({ roofColumns: v })} />
-            <ColorField label="Color" value={ext.roofColor} onChange={(v) => set({ roofColor: v })} />
-            <Select label="Decoración sobre cubierta" value={ext.roofDeco} options={ROOF_DECO_OPTIONS}
-              onChange={(v) => set({ roofDeco: v })} />
             {ext.roofDeco !== 'none' && (
               <>
                 <Slider label="Cantidad" unit="" value={ext.roofDecoCount} min={1} max={12} step={1}
                   onChange={(v) => set({ roofDecoCount: v })} />
                 <Slider label="Altura" unit="m" value={ext.roofDecoHeight} min={2} max={20} step={1}
                   onChange={(v) => set({ roofDecoHeight: v })} />
-                <ColorField label="Color de decoración" value={ext.roofDecoColor}
-                  onChange={(v) => set({ roofDecoColor: v })} />
               </>
+            )}
+            <Toggle label="Pilares de apoyo" checked={ext.roofColumns} onChange={(v) => set({ roofColumns: v })} />
+            <ColorField label="Color" value={ext.roofColor} onChange={(v) => set({ roofColor: v })} />
+            {ext.roofDeco !== 'none' && (
+              <ColorField label="Color de decoración" value={ext.roofDecoColor}
+                onChange={(v) => set({ roofDecoColor: v })} />
             )}
           </>
         )}
@@ -105,9 +108,6 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
       <details className="sub" {...acc('Marcador')}>
         <summary>Marcador</summary>
         <Select label="Tipo" value={ext.score} options={SCORE_OPTIONS} onChange={(v) => set({ score: v })} />
-        {ext.score === 'marquesina' && ext.roof === 'none' && (
-          <p className="hint-text">El marcador de marquesina necesita una cubierta.</p>
-        )}
         {(ext.score === 'marcador' || ext.score === 'pantalla') && (
           <>
             <Slider label="Altura sobre la grada" unit="m" value={ext.scoreHeight} min={4} max={40} step={1}
@@ -116,6 +116,9 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
               onChange={(v) => set({ scoreWidth: v })} />
           </>
         )}
+        {ext.score === 'marquesina' && ext.roof === 'none' && (
+          <p className="hint-text">El marcador de marquesina necesita una cubierta.</p>
+        )}
         <ApplyRow allLabel="Marcador a todos los módulos"
           onAll={applyBlock(keys('score', 'scoreHeight', 'scoreWidth'))} />
       </details>
@@ -123,33 +126,33 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
       <details className="sub" {...acc('Decoración')}>
         <summary>Decoración</summary>
         <Select label="Tipo" value={ext.deco} options={DECO_OPTIONS} onChange={(v) => set({ deco: v })} />
-        {ext.deco !== 'none' && (
-          <>
-            <Slider label={ext.deco === 'towers' ? 'Número de torres' : 'Cantidad'} unit="" value={ext.decoCount}
-              min={1} max={12} step={1} onChange={(v) => set({ decoCount: v })} />
-            <Slider label={ext.deco === 'arches' ? 'Altura de arcos' : 'Altura'} unit="m" value={ext.decoHeight}
-              min={4} max={60} step={1} onChange={(v) => set({ decoHeight: v })} />
-            <ColorField label="Color" value={ext.decoColor} onChange={(v) => set({ decoColor: v })} />
-          </>
+        {ext.circleTowers === 1 && (
+          <Select<TowerPos> label="Posición" value={ext.circleTowerPos} options={TOWER_POS_OPTIONS}
+            onChange={(v) => set({ circleTowerPos: v })} />
         )}
-
-        <Toggle label="Escaleras exteriores en zigzag" checked={ext.stairs}
-          onChange={(v) => set({ stairs: v })} />
-        <p className="hint-text">3 escaleras en laterales y fondos, 1 en esquinas. Tramos de 5 m.</p>
-
+        {ext.deco !== 'none' && (
+          <Slider label={ext.deco === 'towers' ? 'Número de torres' : 'Cantidad'} unit="" value={ext.decoCount}
+            min={1} max={12} step={1} onChange={(v) => set({ decoCount: v })} />
+        )}
+        {ext.deco !== 'none' && (
+          <Slider label={ext.deco === 'arches' ? 'Altura de arcos' : 'Altura'} unit="m" value={ext.decoHeight}
+            min={4} max={60} step={1} onChange={(v) => set({ decoHeight: v })} />
+        )}
         <Slider label="Torres de escaleras" unit="" value={ext.circleTowers} min={0} max={3} step={1}
           onChange={(v) => set({ circleTowers: v })} />
         {ext.circleTowers > 0 && (
-          <>
-            {ext.circleTowers === 1 && (
-              <Select<TowerPos> label="Posición" value={ext.circleTowerPos} options={TOWER_POS_OPTIONS}
-                onChange={(v) => set({ circleTowerPos: v })} />
-            )}
-            <Slider label="Altura de torres" unit="m" value={ext.circleTowerHeight} min={8} max={60} step={1}
-              onChange={(v) => set({ circleTowerHeight: v })} />
-            <ColorField label="Color de torres" value={ext.circleTowerColor}
-              onChange={(v) => set({ circleTowerColor: v })} />
-          </>
+          <Slider label="Altura de torres" unit="m" value={ext.circleTowerHeight} min={8} max={60} step={1}
+            onChange={(v) => set({ circleTowerHeight: v })} />
+        )}
+        <Toggle label="Escaleras exteriores en zigzag" checked={ext.stairs}
+          onChange={(v) => set({ stairs: v })} />
+        <p className="hint-text">3 escaleras en laterales y fondos, 1 en esquinas. Tramos de 5 m.</p>
+        {ext.deco !== 'none' && (
+          <ColorField label="Color" value={ext.decoColor} onChange={(v) => set({ decoColor: v })} />
+        )}
+        {ext.circleTowers > 0 && (
+          <ColorField label="Color de torres" value={ext.circleTowerColor}
+            onChange={(v) => set({ circleTowerColor: v })} />
         )}
 
         <ApplyRow allLabel="Decoración, escaleras y torres a todos los módulos"

@@ -958,3 +958,83 @@ input[type="text"]:focus-visible {
   background: #FF9A14; color: #2B1400;
   box-shadow: inset 0 0 0 2px #1D2729;
 }
+
+/* ==========================================================================
+   v0.29.0 · Interruptores, desplegables translúcidos, separación de 8 px,
+   botones a 50/50 y etiquetas breves
+   ========================================================================== */
+
+/* Interruptores (checkbox con estilo de switch) */
+input[type="checkbox"].switch {
+  appearance: none; -webkit-appearance: none;
+  position: relative; flex: none;
+  width: 40px; min-width: 40px; height: 22px; margin: 0;
+  border-radius: 999px; border: 1px solid var(--stroke);
+  background: rgba(29, 39, 41, 0.18);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+  cursor: pointer; transition: background 0.2s;
+}
+input[type="checkbox"].switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #FFFFFF; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+}
+input[type="checkbox"].switch:checked { background: var(--accent); border-color: transparent; }
+input[type="checkbox"].switch:checked::after { content: ""; transform: translateX(18px); }
+
+/* Filas con etiqueta y control alineados, separadas por 8 px */
+.field-row.inline {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-height: 40px;
+}
+.field-row.inline > span:first-child { flex: 1 1 auto; min-width: 0; }
+.field-row.inline > .dropdown-trigger,
+.field-row.inline > .switch { flex: none; }
+.field-row.inline > .dropdown-trigger { width: 58%; max-width: 58%; }
+details.sub > summary ~ * { margin-top: 8px; }
+details.sub > summary ~ .apply-row { margin-top: 12px; }
+
+/* Botones a 50/50 */
+.actions > *,
+.copy-row > * { flex: 1 1 0; min-width: 0; }
+.apply-row { display: flex; gap: 8px; }
+.apply-row > * { flex: 1 1 0; min-width: 0; }
+.copy-row { display: flex; gap: 8px; align-items: stretch; }
+.copy-row > .dropdown-trigger { min-height: 40px; }
+
+/* Desplegables translúcidos con texto legible */
+.dropdown-trigger {
+  width: 100%; min-height: 40px; padding: 8px 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font: inherit; font-size: 14px; color: var(--text); text-align: left;
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(29, 39, 41, 0.16);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  cursor: pointer; min-width: 0;
+}
+.dropdown-trigger[aria-expanded="true"] { border-color: var(--accent); }
+.dropdown-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.dropdown-trigger svg {
+  width: 14px; height: 14px; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  transition: transform 0.2s;
+}
+.dropdown-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+.dropdown-backdrop { position: fixed; inset: 0; z-index: 1099; }
+.dropdown-list {
+  position: fixed; z-index: 1100; margin: 0; padding: 4px; list-style: none;
+  max-height: 60vh; overflow: auto; box-sizing: border-box;
+  background: rgba(245, 241, 236, 0.72);
+  backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(10, 46, 56, 0.25);
+}
+.dropdown-item {
+  padding: 10px 12px; border-radius: 6px;
+  font-size: 14px; color: #1D2729; cursor: pointer;
+}
+.dropdown-item:hover { background: rgba(22, 105, 122, 0.12); }
+.dropdown-item.active { background: var(--accent); color: #FFFFFF; font-weight: 600; }

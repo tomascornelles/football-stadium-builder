@@ -10,6 +10,7 @@ export function Toggle({ label, checked, onChange }: ToggleProps) {
       <span>{label}</span>
       <input
         type="checkbox"
+        role="switch"
         className="switch"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}

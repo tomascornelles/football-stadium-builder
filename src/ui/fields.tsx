@@ -1,5 +1,6 @@
 import { ColorPicker } from './ColorPicker';
 import { Option } from '../types';
+import { Dropdown } from './Dropdown';
 
 export function Select<T extends string>({
   label, value, options, onChange,
@@ -10,14 +11,10 @@ export function Select<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <label className="field-row inline">
+    <div className="field-row inline">
       <span>{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value as T)}>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-    </label>
+      <Dropdown value={value} options={options} onChange={onChange} ariaLabel={label} />
+    </div>
   );
 }
 

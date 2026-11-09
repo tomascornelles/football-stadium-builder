@@ -354,7 +354,7 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
   const island = new PolyBuffer(Y.island);
   const cars: THREE.Mesh[] = [];
   const lights: { x: number; z: number; color: number }[] = [];
-  const lamps: [number, number][] = [];
+  const lamps: [number, number, number, number][] = [];
   const via = (i: number, j: number) => isVia(at(env, i, j));
   const surf = (i: number, j: number) => isSurface(at(env, i, j));
 
@@ -431,7 +431,7 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
     if (surfArms.length >= 3) {
       lights.push({ x: cx + 7, z: cz - 7, color: LIGHT_COLORS[Math.floor(seeded(i * 5.3 + j * 2.9) * LIGHT_COLORS.length)] });
     }
-    lamps.push([cx - 7.5, cz + 7.5]);
+    lamps.push([cx - 7.5, cz + 7.5, 2.1, -2.1]); // el halo se desplaza hacia la calle
   }
 
   // Glorietas: anillo circular con isla, carril discontinuo, accesos y farolas
@@ -460,7 +460,7 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
 
     for (let k = 0; k < 8; k++) {
       const a = (k / 8) * Math.PI * 2 + Math.PI / 8;
-      lamps.push([cx + Math.cos(a) * 30, cz + Math.sin(a) * 30]);
+      lamps.push([cx + Math.cos(a) * 30, cz + Math.sin(a) * 30, -Math.cos(a) * 3, -Math.sin(a) * 3]);
     }
   }
 
@@ -489,9 +489,10 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
     const poleMat = new THREE.MeshLambertMaterial({ color: COLORS.steel, flatShading: true });
     const headMat = new THREE.MeshBasicMaterial({ color: 0xfff1c1 });
     const glowMat = glowMaterial();
-    const glowGeo = new THREE.PlaneGeometry(12, 12);
+    const glowGeo = new THREE.PlaneGeometry(22, 22);
     glowGeo.rotateX(-Math.PI / 2);
-    for (const [x, z] of lamps) {
+    glowMat.opacity = 0.42;
+    for (const [x, z, ox, oz] of lamps) {
       const pole = new THREE.Mesh(new THREE.BoxGeometry(0.3, 6, 0.3), poleMat);
       pole.position.set(x, 3, z);
       group.add(pole);
@@ -499,7 +500,7 @@ function buildRoads(env: Record<string, EnvCell>, night: boolean): THREE.Group {
       head.position.set(x, 6.2, z);
       group.add(head);
       const glow = new THREE.Mesh(glowGeo, glowMat);
-      glow.position.set(x, 0.07, z);
+      glow.position.set(x + ox, 0.07, z + oz);
       group.add(glow);
     }
   }

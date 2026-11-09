@@ -12,8 +12,10 @@ import {
 import { alertDialog, confirmDialog, loadDialog, saveDialog } from './dialog';
 import { randomStadiumName } from '../names';
 import { pngDataUrl, thumbnailDataUrl } from '../capture';
+import { getCurrentName, setCurrentName } from '../session';
 
-const defaultName = () => randomStadiumName();
+/** Nombre sugerido: el del estadio si ya tiene uno; si no, uno aleatorio. */
+const defaultName = () => getCurrentName() ?? randomStadiumName();
 
 /** Carga un proyecto reemplazando el actual, previa confirmación. */
 export async function requestLoad(project: Project, label: string): Promise<boolean> {
@@ -23,7 +25,10 @@ export async function requestLoad(project: Project, label: string): Promise<bool
     confirmLabel: 'Cargar',
     danger: true,
   });
-  if (ok) actions.loadProject(project);
+  if (ok) {
+    actions.loadProject(project);
+    setCurrentName(project.name);
+  }
   return ok;
 }
 
@@ -43,6 +48,7 @@ export async function saveFlow() {
 
   try {
     saveToLibrary(name, thumbnailDataUrl() ?? undefined);
+    setCurrentName(name);
     await alertDialog('Guardado', `El estadio «${name}» se ha guardado en este dispositivo.`);
   } catch {
     await alertDialog('Error', 'No se pudo guardar: el almacenamiento del navegador está lleno.');
@@ -53,6 +59,7 @@ export async function exportFlow() {
   const name = await saveDialog('Exportar estadio', defaultName(), 'Exportar');
   if (!name) return;
   downloadProject(currentProject(name));
+  setCurrentName(name);
 }
 
 /** Descarga una imagen PNG del estadio y su entorno. */
@@ -101,7 +108,10 @@ export async function resetFlow() {
     confirmLabel: 'Nuevo',
     danger: true,
   });
-  if (ok) actions.reset();
+  if (ok) {
+    actions.reset();
+    setCurrentName(null);
+  }
 }
 
 /** Borra un estadio guardado, pidiendo confirmación. Devuelve true si se borró. */

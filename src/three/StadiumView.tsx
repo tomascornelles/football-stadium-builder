@@ -17,7 +17,7 @@ import { buildPitch } from './pitch';
 import { buildEnvironment, buildGridLines } from '../geometry/environment';
 import { cellFromPoint } from '../environment';
 import { ENV_CELL, ENV_HALF } from '../config';
-import { registerCapture } from '../capture';
+import { isSelectionHidden, registerCapture } from '../capture';
 
 const VIEW_HALF_H = 110;
 const VIEW_HALF_W = 130;
@@ -254,7 +254,7 @@ export function StadiumView() {
           entries.set(s.id, entry);
         }
 
-        const selected = s.id === st.selectedStandId;
+        const selected = !isSelectionHidden() && s.id === st.selectedStandId;
         entry.group.children.forEach((child) => {
           if (!child.userData.isTier) return;
           const mat = (child as THREE.Mesh).material as THREE.MeshLambertMaterial;
@@ -320,7 +320,7 @@ export function StadiumView() {
       gridLines.visible = st.mode === 'environment';
 
       hitboxes.forEach((mesh, id) => {
-        (mesh.material as THREE.MeshBasicMaterial).opacity = id === st.selectedModule && st.mode === 'stadium' ? 0.25 : 0;
+        (mesh.material as THREE.MeshBasicMaterial).opacity = id === st.selectedModule && st.mode === 'stadium' && !isSelectionHidden() ? 0.25 : 0;
       });
 
       // Luces de los focos, colocadas en los cabezales del estadio
@@ -499,10 +499,15 @@ export function StadiumView() {
     canvas.addEventListener('pointerleave', onCancel);
     canvas.addEventListener('wheel', onWheel, { passive: false });
 
-    registerCapture(() => {
-      renderer.render(scene, camera);
-      return renderer.domElement;
-    });
+    registerCapture(
+      () => {
+        // Sin módulo ni grada destacados: sync() lee isSelectionHidden()
+        sync();
+        renderer.render(scene, camera);
+        return renderer.domElement;
+      },
+      () => sync(),
+    );
 
     const unsubscribe = subscribe(sync);
     sync();

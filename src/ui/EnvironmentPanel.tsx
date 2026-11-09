@@ -20,7 +20,6 @@ interface EnvironmentPanelProps {
 export function EnvironmentPanel({ open, setOpen }: EnvironmentPanelProps) {
   const state = useSyncExternalStore(subscribe, getState);
   const toolLabel = ENV_TOOLS.find((t) => t.value === state.tool)?.label ?? '';
-  const cells = Object.keys(state.environment).length;
 
   return (
     <aside className={`panel glass ${open ? 'open' : ''}`}>
@@ -49,10 +48,6 @@ export function EnvironmentPanel({ open, setOpen }: EnvironmentPanelProps) {
               </button>
             ))}
           </div>
-          <p className="hint-text">
-            Todo el entorno es parque por defecto. Borrar devuelve la celda a parque.
-            Los árboles solo caben en parques.
-          </p>
         </section>
 
         {state.tool === 'road' && (
@@ -102,8 +97,6 @@ export function EnvironmentPanel({ open, setOpen }: EnvironmentPanelProps) {
         )}
 
         <section className="editor">
-          <h2 className="section-title">Cuadrícula</h2>
-          <p className="hint-text">{cells} celdas modificadas</p>
           <button
             className="btn danger full"
             onClick={async () => {

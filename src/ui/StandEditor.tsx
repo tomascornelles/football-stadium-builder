@@ -18,6 +18,7 @@ import {
 import { Slider } from './Slider';
 import { Toggle } from './Toggle';
 import { ApplyRow, ColorField, Select } from './fields';
+import { Dropdown } from './Dropdown';
 
 const CORNER_IDS: ModuleId[] = ['nw', 'ne', 'sw', 'se'];
 
@@ -86,9 +87,9 @@ export function StandEditor({ stand }: { stand: Stand }) {
           </>
         )}
         <ApplyRow
-          moduleLabel="Fachada a las gradas del módulo"
+          moduleLabel="Al módulo"
           onModule={() => actions.applyStandPatch(stand.id, { facade: f }, 'module')}
-          allLabel="Fachada a todos los módulos"
+          allLabel="A todos"
           onAll={() => actions.applyStandPatch(stand.id, { facade: f }, 'all')}
         />
       </details>
@@ -105,9 +106,9 @@ export function StandEditor({ stand }: { stand: Stand }) {
           onChange={(v) => actions.updateStand(stand.id, { railing: v })}
         />
         <ApplyRow
-          moduleLabel="Pilares y barandilla al módulo"
+          moduleLabel="Al módulo"
           onModule={() => actions.applyStandPatch(stand.id, { columns: stand.columns, railing: stand.railing }, 'module')}
-          allLabel="Pilares y barandilla a todos los módulos"
+          allLabel="A todos"
           onAll={() => actions.applyStandPatch(stand.id, { columns: stand.columns, railing: stand.railing }, 'all')}
         />
       </details>
@@ -118,12 +119,15 @@ export function StandEditor({ stand }: { stand: Stand }) {
       </div>
 
       <div className="copy-row">
-        <select value={target} onChange={(e) => setTarget(e.target.value as ModuleId | '')}>
-          <option value="">Copiar a módulo…</option>
-          {MODULE_IDS.filter((id) => id !== stand.moduleId).map((id) => (
-            <option key={id} value={id}>{MODULE_NAMES[id]}</option>
-          ))}
-        </select>
+        <Dropdown<ModuleId | ''>
+          ariaLabel="Copiar a módulo"
+          value={target}
+          options={[
+            { value: '', label: 'Copiar a…' },
+            ...MODULE_IDS.filter((id) => id !== stand.moduleId).map((id) => ({ value: id, label: MODULE_NAMES[id] })),
+          ]}
+          onChange={(v) => setTarget(v)}
+        />
         <button
           className="btn"
           disabled={!target}
@@ -136,7 +140,7 @@ export function StandEditor({ stand }: { stand: Stand }) {
       </div>
 
       <button className="btn full" onClick={() => actions.copyStandToAll(stand.id)}>
-        Copiar a todos los módulos
+        Copiar a todos
       </button>
     </section>
   );
