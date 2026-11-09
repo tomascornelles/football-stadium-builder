@@ -8,13 +8,13 @@ El usuario construye un estadio por módulos (laterales, fondos y esquinas), con
 
 ## Estado actual
 
-Versión **0.27.1**. Funcionalidades:
+Versión **0.23.3**. Funcionalidades:
 
 - **Estadio**: 8 módulos (`north`, `ne`, `east`, `se`, `south`, `sw`, `west`, `nw`). `north`/`south` son laterales (105 m), `west`/`east` son fondos (68 m), las esquinas son curvas de Bézier.
-- **Gradas**: altura, inclinación, desplazamiento, curvatura (recta, curva intermedia, curva), pilares (ninguno, interiores o exteriores), barandilla, color. Se apilan por niveles.
-- **Fachada por grada**: sin fachada (tableta de 0,5 m), pilares exteriores, lisa, paneles verticales o horizontales. Profundidad de 0 a 40 m desde el borde trasero.
-- **Exteriores por módulo**: cubierta (marquesina, voladizo con inclinación de −20° a 20°, curva), iluminación (torres de focos o barra), marcador, decoración exterior y sobre cubierta, escaleras zigzag y torres circulares. Cada apartado puede aplicarse a todos los módulos por separado.
-- **Entorno**: cuadrícula de 400 × 400 m, celdas de 20 m. Parque por defecto. Herramientas: vía (carretera, avenida o camino), árboles, edificio (casa, edificio u oficinas en torre), agua y borrar. Vías unidas con curvas, cruces, aceras, líneas, coches y semáforos. Glorietas: anillo de 8 vías alrededor de una celda central libre. Aparcamiento: cualquier bloque de 2 × 2 vías o más. Agua con orillas irregulares y arena.
+- **Gradas**: altura, inclinación, desplazamiento, curvatura (recta, curva intermedia, curva), pilares, barandilla, color. Se apilan por niveles.
+- **Exteriores por módulo**: fachada (6 estilos), cubierta (3 tipos, ancho, extensión interior, pilares), iluminación (torres de focos o barra), marcador, decoración exterior y sobre cubierta (pilares, torres, soportes, arcos, armaduras, mástiles, celosía).
+- **Muros de unión** entre fachadas vecinas.
+- **Entorno**: cuadrícula de 400 × 400 m, celdas de 20 m. Parque por defecto. Herramientas: vía (carretera, avenida o camino), árboles, edificio (casa, edificio u oficinas en torre), agua y borrar. Vías unidas con curvas, cruces, aceras, líneas, coches y semáforos. Glorietas: anillo de 8 vías alrededor de una celda central libre. Aparcamiento: bloque 3 × 3 de vías o vías interiores de un bloque mayor. Agua con orillas irregulares y arena.
 - **Día y noche**: sombras solo de día. De noche, farolas, ventanas iluminadas, focos y fanales de marquesina con luz real.
 - **Guardar y cargar**: biblioteca local con miniaturas, archivo `.json`, exportar PNG.
 - **Vistas**: isométrica y cenital. Paleta de la interfaz: arena, petróleo y coral.
@@ -78,10 +78,4 @@ public/
 - 0.20: focos de noche como luz real y dirigidos al campo; corrección de desplazamiento en esquinas.
 - 0.21: fachadas uniformes, fanales de marquesina, más intensidad de luz, aparcamientos.
 - 0.22: paleta arena/petróleo/coral, selector de 12 colores, vista cenital.
-- 0.24: fachada por grada, pilares interiores o exteriores, voladizo con inclinación real, focos repartidos en esquinas, escaleras zigzag y torres circulares.
-- 0.27.1: radio único de 8 px, sombras tras los elementos, separación de 8 px, formularios uniformes, casillas cuadradas, selector día/noche legible, sin borde naranja en seleccionados, datos secundarios legibles sobre el acento.
-- 0.27.0: diseño Fluent (superficies planas al 80 %, desenfoque, brillo de 1 px, sin degradados), paleta nueva (acento #16697A, textos #1D2729, fondos #EDE7E3, detalle #FFA62B), logo nuevo en cabecera e icono, pantalla de carga móvil con el acento de fondo.
-- 0.26.1: parking para cualquier bloque 2×2; esquinas con desplazamiento positivo sin deformación (los extremos se desplazan, no la curva entera).
-- 0.26: cruces con paso de peatones y línea de detención, transición de anchura entre vías distintas, reglas de aparcamiento corregidas, marcador de marquesina como tira LED de 1 m.
-- 0.25: fachada desde la base de la grada con grosor de 0,5 a 40 m; tablero hueco de 0,5 m; marcador de marquesina LED; torres de escaleras huecas; escaleras sobre la fachada; agua con orillas suaves según las celdas vecinas; celda bajo el ratón resaltada; selector de color plegable.
 - 0.23: agua, avenidas, selector de vía, glorietas de 8 vías, aparcamiento 3 × 3, torres de oficinas, marcador de marquesina, torres de decoración en esquinas.
