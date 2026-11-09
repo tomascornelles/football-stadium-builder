@@ -1,40 +1,29 @@
 # DESIGN_SYSTEM.md — Sistema de diseño de Piixell
 
-Describe cómo se ve y se comporta la interfaz. Los valores de referencia están en `src/styles.css`.
+Describe cómo se ve y se comporta la interfaz. Los valores de referencia están en `src/styles.css` (sección v0.27.0, al final del archivo).
 
-## Estilo: Liquid Glass
+## Estilo: Fluent
 
-Superficies translúcidas con desenfoque fuerte, borde claro y brillo especular superior.
+Colores planos, sin degradados. Superficies translúcidas con desenfoque de fondo.
 
-- **Superficie `.glass`**: fondo degradado blanco translúcido (sobre el petróleo) (24 % → 7 % → 13 %), `backdrop-filter: blur(30px) saturate(190%) brightness(1.06)`, borde `rgba(255,255,255,.3)`, radio 26 px, sombra exterior `0 18px 50px rgba(0,0,0,.32)` y sombra interior de brillo.
-- **Brillo especular**: pseudoelemento `::before` con gradiente blanco en la parte superior, detrás del contenido (`z-index: -1`).
-- **Aislamiento**: los paneles y la cabecera usan `isolation: isolate`. La cabecera tiene `z-index: 60` y el menú `z-index: 1000` (capa fija).
+- **Superficie** (`.glass`, `.toolbar`, `.panel`, `.menu`, `.modal`): color plano `rgba(237,231,227,0.8)` (fondo al 80 %), `backdrop-filter: blur(24px)`, borde de 1 px `rgba(29,39,41,0.12)`, radio 8 px.
+- **Brillo**: borde superior de 1 px claro `inset 0 1px 0 rgba(255,255,255,0.9)`. Sin degradados.
+- **Sombra**: suave por detrás, `0 8px 24px rgba(29,39,41,0.18)`.
+- **Espaciado**: márgenes y paddings en múltiplos de 8 (8, 16, 24, 32). Las variables `--space-1` a `--space-3` lo expresan.
+- **Acento secundario**: solo en detalles (foco de teclado, marca de selección). Nunca en superficies ni en botones.
 
 ## Colores
 
-### Paleta de la interfaz (vigente desde 0.22.0)
+| Rol | Valor | Uso |
+|---|---|---|
+| Acento principal | `#16697A` | Botón principal, selección, deslizadores, interruptores, pantalla de carga móvil |
+| Textos | `#1D2729` | Todo el texto |
+| Fondos | `#EDE7E3` | Fondo de la página y superficies (con 80 % de transparencia) |
+| Acento secundario | `#FFA62B` | Solo detalles: foco de teclado |
 
-Basada en la referencia de color: 60 % arena, 30 % petróleo, 10 % coral.
+Estados: el peligro usa `#B42318`.
 
-| Rol | Nombre | Valor | Uso |
-|---|---|---|---|
-| Principal (60 %) | Arena | `#E8DCC4` | Texto principal, pastilla activa, superficies claras |
-| Secundario (30 %) | Petróleo | `#0F4C5C` | Fondo de la página, superficies profundas |
-| Acento (10 %) | Coral | `#FF5E4D` | Botón principal, selección, deslizadores, interruptores |
-| Tinta | Tinta | `#0A2E38` | Texto sobre arena y coral, fondos más oscuros |
-| Secundario claro | Bruma | `#A9C3C6` | Texto secundario y de ayuda |
-
-Valores exactos: coral `#FF5E4D` (de la referencia). Arena `#E8DCC4` y petróleo `#0F4C5C` son estimaciones de la referencia; confirmar antes de considerarlos definitivos.
-
-Estados: el peligro usa rojo (`#E4574A`), distinto del coral de acento.
-
-### Paleta de selección de color (12 colores predefinidos)
-
-Definida en `src/palette.ts`: arena, arena oscura, marfil, petróleo, mar, turquesa suave, coral, coral suave, ladrillo, albaricoque, grafito y piedra. Se usa en fachadas, gradas, cubiertas, decoración y edificios. Cada selector permite además un color personalizado.
-
-### Escenario
-
-El césped, el asfalto, las aceras y los edificios del escenario mantienen sus colores propios (ver `src/geometry/`). La paleta de la interfaz no los cambia.
+Los colores de los objetos del estadio (`PALETTE_COLORS` en `src/palette.ts`) no forman parte de la interfaz y no han cambiado.
 
 ## Tipografía
 
