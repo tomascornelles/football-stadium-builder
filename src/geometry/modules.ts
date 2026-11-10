@@ -17,8 +17,9 @@ const AISLE_SPACING = 20;
 const AISLE_WIDTH = 1.2;
 /** Tramo (m) en el que los pilares decorativos pasan de su distancia propia a la de la esquina. */
 const PILLAR_RAMP = 8;
-/** Tamaño de cada agujero de salida (m) y paso vertical de la fachada de pisos (m). */
-const EXIT_HOLE = 0.6;
+/** Tamaño máximo de cada agujero de salida (m), marco de pasillo alrededor (m) y paso de los pisos (m). */
+const EXIT_MAX = 2.0;
+const AISLE_BORDER = 0.45;
 const FLOOR_STEP = 5;
 const FLOOR_SLAB = 0.4;
 /** Ancho de los pilares decorativos (m). */
@@ -424,7 +425,10 @@ function addAisles(group: THREE.Group, frame: Frame, points: THREE.Vector2[], co
   }
 }
 
-/** Salidas: agujeros oscuros sobre el tablero de la grada, en el centro de cada pasillo. */
+/**
+ * Salidas: agujeros oscuros sobre el tablero de la grada, en el centro de cada pasillo.
+ * Cada agujero va rodeado de un marco de pasillo pintado, como en las referencias.
+ */
 function addExitHoles(group: THREE.Group, frame: Frame, stand: Stand, baseY: number) {
   const centers = aisleCenters(frame);
   if (centers.length === 0) return;
@@ -432,16 +436,25 @@ function addExitHoles(group: THREE.Group, frame: Frame, stand: Stand, baseY: num
   const rows = rowCount(stand.height);
   const rise = stand.height / rows;
   const tread = run / rows;
-  // Fila central de la grada: el agujero queda a media profundidad, rodeado de pasillo
+  // Fila central de la grada: el agujero queda a media profundidad
   const i = Math.floor(rows / 2);
   const u = (i + 0.5) * tread;
-  const y = baseY + (i + 1) * rise + 0.08;
-  const mat = new THREE.MeshLambertMaterial({ color: 0x1d2729, flatShading: true });
+  const yT = baseY + (i + 1) * rise;
+  // El agujero no puede ser más profundo que la huella de una fila
+  const size = Math.min(EXIT_MAX, tread * 0.95);
+  const frameSize = size + 2 * AISLE_BORDER;
+  const paint = new THREE.MeshLambertMaterial({ color: stand.aisleColor, flatShading: true });
+  const dark = new THREE.MeshLambertMaterial({ color: 0x1d2729, flatShading: true });
   for (const t of centers) {
     const p = surface(frame, t, u);
-    const hole = new THREE.Mesh(new THREE.BoxGeometry(EXIT_HOLE, 0.1, EXIT_HOLE), mat);
-    hole.position.set(p.x, y, p.z);
-    hole.rotation.y = faceRotation(frame.at(t).n);
+    const rot = faceRotation(frame.at(t).n);
+    const border = new THREE.Mesh(new THREE.BoxGeometry(frameSize, 0.1, frameSize), paint);
+    border.position.set(p.x, yT + 0.05, p.z);
+    border.rotation.y = rot;
+    group.add(border);
+    const hole = new THREE.Mesh(new THREE.BoxGeometry(size, 0.06, size), dark);
+    hole.position.set(p.x, yT + 0.12, p.z);
+    hole.rotation.y = rot;
     group.add(hole);
   }
 }
@@ -534,9 +547,10 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
     return;
   }
   if (f.kind === 'floors') {
-    // Tableros horizontales cada FLOOR_STEP metros, desde la base hasta la altura de la grada
-    for (let y = baseY; y < top - 0.01; y += FLOOR_STEP) {
-      group.add(sweepMesh(frame, rectPoints(inner, y, outer, Math.min(y + FLOOR_SLAB, top)), mat(f.color)));
+    // Tableros cada FLOOR_STEP m, contados desde la base del tablero de la grada (bajo su borde trasero)
+    const boardBase = top - TABLET;
+    for (let yt = boardBase; yt - FLOOR_SLAB >= baseY - TABLET; yt -= FLOOR_STEP) {
+      group.add(sweepMesh(frame, rectPoints(inner, yt - FLOOR_SLAB, outer, yt), mat(f.color)));
     }
     return;
   }
