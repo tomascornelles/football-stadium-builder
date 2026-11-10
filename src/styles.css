@@ -1082,3 +1082,15 @@ details.sub > summary ~ .apply-row { margin-top: 12px; }
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 .color-trigger[aria-expanded="true"] { border-color: var(--accent); }
+
+/* v0.32.1 · Selector día/noche legible sobre fondo claro u oscuro:
+   vidrio oscuro translúcido y texto no marcado claro. */
+.lighting-seg {
+  background: rgba(12, 22, 28, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.lighting-seg button { color: rgba(255, 255, 255, 0.9); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.lighting-seg button:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.12); }
+.lighting-seg button.active { background: #FFFFFF; color: #0A2E38; text-shadow: none; }

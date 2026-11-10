@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { ColorPicker } from './ColorPicker';
 import { actions, getState } from '../store';
-import { CORNER_TEMPLATE_LABEL, computeAnchors, cornerTemplateOf } from '../geometry/modules';
 import { LIMITS } from '../config';
 import {
   COLUMN_OPTIONS,
@@ -48,12 +47,7 @@ export function StandEditor({ stand }: { stand: Stand }) {
         min={LIMITS.offset.min} max={LIMITS.offset.max} step={LIMITS.offset.step}
         onChange={(v) => actions.updateStand(stand.id, { offset: v })}
       />
-      {corner ? (
-        <p className="hint-text">
-          Esquina con plantilla {CORNER_TEMPLATE_LABEL[cornerTemplateOf(stand.moduleId, computeAnchors(getState().stands))]}:
-          se ajusta a las gradas vecinas.
-        </p>
-      ) : (
+      {(
         <Select<CurveType>
           label="Curvatura" value={stand.curve} options={CURVE_OPTIONS}
           onChange={(v) => actions.updateStand(stand.id, { curve: v })}
