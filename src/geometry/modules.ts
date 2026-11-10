@@ -100,21 +100,38 @@ function arcFrame(a: THREE.Vector2, b: THREE.Vector2, sag: number, off: number):
   };
 }
 
-/** Tamaño de cada esquina: cuánto se acortan los módulos rectos en cada extremo (m). */
+/** Tamaño de cada esquina: distancia (m) desde el extremo de la banda hasta el corte de la esquina. */
 const CORNER_SIZE = 24;
 
-/** Extremos de un módulo recto, a una distancia v de la línea de banda o de fondo, sin ocupar las esquinas. */
-function straightEnds(id: ModuleId, v: number): [THREE.Vector2, THREE.Vector2] {
+/**
+ * Cortes entre módulos en la línea base. El módulo RING[i] va del corte i al corte i+1.
+ * Cada corte es un punto de la banda; su línea de corte es radial desde el centro del campo,
+ * así dos módulos vecinos con el mismo desplazamiento encajan sin huecos.
+ */
+const CUT_BASE: THREE.Vector2[] = (() => {
   const K = CORNER_SIZE;
-  switch (id) {
-    case 'north': return [v2(-HALF_L + K, -(HALF_W + v)), v2(HALF_L - K, -(HALF_W + v))];
-    case 'east': return [v2(HALF_L + v, -HALF_W + K), v2(HALF_L + v, HALF_W - K)];
-    case 'south': return [v2(HALF_L - K, HALF_W + v), v2(-HALF_L + K, HALF_W + v)];
-    case 'west': return [v2(-(HALF_L + v), HALF_W - K), v2(-(HALF_L + v), -HALF_W + K)];
-    default: return [v2(0, 0), v2(0, 0)];
-  }
-}
+  const G = STAND_GAP;
+  return [
+    v2(-(HALF_L - K), -(HALF_W + G)), // 0: inicio del fondo norte
+    v2(HALF_L - K, -(HALF_W + G)),    // 1: fin del fondo norte
+    v2(HALF_L + G, -(HALF_W - K)),    // 2: fin de la esquina noreste
+    v2(HALF_L + G, HALF_W - K),       // 3: fin del lateral este
+    v2(HALF_L - K, HALF_W + G),       // 4: fin de la esquina sureste
+    v2(-(HALF_L - K), HALF_W + G),    // 5: fin del fondo sur
+    v2(-(HALF_L + G), HALF_W - K),    // 6: fin de la esquina suroeste
+    v2(-(HALF_L + G), -(HALF_W - K)), // 7: fin del lateral oeste
+  ];
+})();
 
+/** Extremos de un módulo: sus dos cortes, desplazados radialmente `off` metros hacia fuera. */
+function ringEnds(id: ModuleId, off: number): [THREE.Vector2, THREE.Vector2] {
+  const i = RING.indexOf(id);
+  const at = (k: number) => {
+    const p = CUT_BASE[k % CUT_BASE.length];
+    return p.clone().addScaledVector(p.clone().normalize(), off);
+  };
+  return [at(i), at(i + 1)];
+}
 
 /* ---------- Anclas: lo que cada módulo ofrece a sus vecinos ---------- */
 
@@ -148,27 +165,16 @@ function neighbors(id: ModuleId): [ModuleId, ModuleId] {
   return [RING[(i + RING.length - 1) % RING.length], RING[(i + 1) % RING.length]];
 }
 
-/**
- * Extremos de un módulo en la línea base (sin desplazamiento). Un módulo recto va de
- * su banda a la siguiente. Una esquina es un módulo más: une el extremo base del
- * vecino anterior con el inicio base del siguiente, y tiene sus propios parámetros.
- */
-function ringEnds(id: ModuleId): [THREE.Vector2, THREE.Vector2] {
-  if (!isCorner(id)) return straightEnds(id, STAND_GAP);
-  const [prev, next] = neighbors(id);
-  return [straightEnds(prev, STAND_GAP)[1], straightEnds(next, STAND_GAP)[0]];
-}
-
 /** Curva de referencia de un módulo: la de su primera fila. */
 export function moduleFrame(id: ModuleId, anchors: Anchors): Frame {
-  const [a, b] = ringEnds(id);
-  return arcFrame(a, b, anchors[id].bulge, anchors[id].v - STAND_GAP);
+  const [a, b] = ringEnds(id, anchors[id].v - STAND_GAP);
+  return arcFrame(a, b, anchors[id].bulge, 0);
 }
 
-/** Curva de una grada: su módulo, con su propia curvatura y desplazamiento. */
+/** Curva de una grada: su módulo (recto o curva), desplazado con sus propios extremos. */
 export function standFrame(stand: Stand, _anchors: Anchors, _stands: Stand[]): Frame {
-  const [a, b] = ringEnds(stand.moduleId);
-  return arcFrame(a, b, CURVE_BULGE_BY[stand.curve as CurveType], stand.offset);
+  const [a, b] = ringEnds(stand.moduleId, stand.offset);
+  return arcFrame(a, b, CURVE_BULGE_BY[stand.curve as CurveType], 0);
 }
 
 /* ---------- Barrido de perfiles ---------- */

@@ -1086,7 +1086,7 @@ details.sub > summary ~ .apply-row { margin-top: 12px; }
 /* v0.32.1 · Selector día/noche legible sobre fondo claro u oscuro:
    vidrio oscuro translúcido y texto no marcado claro. */
 .lighting-seg {
-  background: rgba(12, 22, 28, 0.58);
+  background: rgba(12, 22, 28, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.24);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);

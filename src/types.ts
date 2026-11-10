@@ -104,21 +104,22 @@ export interface Stand {
   facade: StandFacade;
 }
 
-export type CurveType = 'straight' | 'mid' | 'full';
+export type CurveType = 'straight' | 'mid';
 
 export const CURVE_OPTIONS: Option<CurveType>[] = [
   { value: 'straight', label: 'Recta' },
-  { value: 'mid', label: 'Curva intermedia' },
-  { value: 'full', label: 'Curva' },
+  { value: 'mid', label: 'Curva' },
 ];
 
 /** Flecha de la curva según su tipo (m, hacia fuera del campo). */
-export const CURVE_BULGE_BY: Record<CurveType, number> = { straight: 0, mid: 6, full: 14 };
+export const CURVE_BULGE_BY: Record<CurveType, number> = { straight: 0, mid: 6 };
 
 /** Convierte el campo antiguo «curved» (booleano) en el nuevo tipo de curvatura. */
 export function migrateCurve(raw: { curve?: unknown; curved?: unknown }): CurveType {
-  if (raw.curve === 'straight' || raw.curve === 'mid' || raw.curve === 'full') return raw.curve;
-  return raw.curved === true ? 'full' : 'straight';
+  if (raw.curve === 'straight' || raw.curve === 'mid') return raw.curve;
+  // Las antiguas «Curva» (grande) y «Curva intermedia» pasan a «Curva»
+  if (raw.curve === 'full') return 'mid';
+  return raw.curved === true ? 'mid' : 'straight';
 }
 
 export type RoofType = 'none' | 'canopy' | 'cantilever' | 'arch';
