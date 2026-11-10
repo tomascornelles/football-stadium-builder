@@ -11,7 +11,7 @@ import {
   hitboxMesh,
   layoutBaseHeights,
   moduleExtent,
-  pillarEdges,
+  pillarLine,
   tallestStand,
 } from '../geometry/modules';
 import { buildPitch } from './pitch';
@@ -273,19 +273,19 @@ export function StadiumView() {
       }
 
       // Exteriores por módulo
-      const edges = pillarEdges(st.stands);
       for (const id of MODULE_IDS) {
         const ext = st.exteriors[id];
         const extent = moduleExtent(st.stands, id);
         const tallest = tallestStand(st.stands, id, anchors);
-        const key = JSON.stringify([ext, extent, anchorKey, tallest, edges[id]]);
+        const line = pillarLine(st.stands, id);
+        const key = JSON.stringify([ext, extent, anchorKey, tallest, line?.u ?? 0]);
         const current = structures.get(id);
         if (!current || current.key !== key) {
           if (current) {
             structureGroup.remove(current.group);
             disposeGroup(current.group);
           }
-          const group = buildModuleStructures(id, ext, extent, anchors, tallest, edges[id]);
+          const group = buildModuleStructures(id, ext, extent, anchors, tallest, line);
           shadowsOn(group);
           structureGroup.add(group);
           structures.set(id, { group, key });

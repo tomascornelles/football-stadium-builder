@@ -508,19 +508,22 @@ export function estimateCapacity(stands: Stand[]): number {
 }
 
 /**
- * Distancia exterior de los pilares decorativos en el inicio y el fin de cada módulo.
- * Dos módulos vecinos comparten la misma distancia en su unión, así que sus pilares coinciden.
+ * Línea exterior de un módulo: el marco de su grada más alejada y la distancia de su borde exterior.
+ * Los pilares decorativos se colocan sobre ese mismo marco, que es el que sigue cada grada.
  */
-export function pillarEdges(stands: Stand[]): Record<ModuleId, [number, number]> {
-  const outer = {} as Record<ModuleId, number>;
-  for (const id of RING) outer[id] = moduleExtent(stands, id)?.outer ?? 10;
-  const out = {} as Record<ModuleId, [number, number]>;
-  RING.forEach((id, i) => {
-    const prev = RING[(i + RING.length - 1) % RING.length];
-    const next = RING[(i + 1) % RING.length];
-    out[id] = [Math.max(outer[prev], outer[id]), Math.max(outer[id], outer[next])];
-  });
-  return out;
+export function pillarLine(stands: Stand[], moduleId: ModuleId): { frame: Frame; u: number } | null {
+  const list = stands.filter((s) => s.moduleId === moduleId);
+  if (list.length === 0) return null;
+  const anchors = computeAnchors(stands);
+  let best: { outer: number; frame: Frame; u: number } | null = null;
+  for (const s of list) {
+    const rel = isCorner(moduleId) ? cornerExtraOffset(s, stands) : STAND_GAP + s.offset - anchors[moduleId].v;
+    const run = s.height / Math.tan(THREE.MathUtils.degToRad(s.tilt));
+    const d = s.facade.kind === 'none' ? 0 : s.facade.depth;
+    const outer = rel + run + d;
+    if (!best || outer > best.outer) best = { outer, frame: standFrame(s, anchors, stands), u: run + d };
+  }
+  return best ? { frame: best.frame, u: best.u } : null;
 }
 
 /* ---------- Gradas ---------- */
@@ -600,7 +603,7 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
     const boardBase = top - TABLET;
     for (let yt = boardBase; yt - FLOOR_SLAB >= baseY - TABLET; yt -= FLOOR_STEP) {
       const y0 = yt - FLOOR_SLAB;
-      group.add(sweepMesh(frame, rectPoints(startU(y0), y0, outer, yt), mat(f.color)));
+      group.add(sweepMesh(frame, rectPoints(startU(yt), y0, outer, yt), mat(f.color)));
     }
     return;
   }
@@ -614,7 +617,7 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
     } else {
       const y0 = baseY + (h * k) / n;
       const y1 = baseY + (h * (k + 1)) / n;
-      group.add(sweepMesh(frame, rectPoints(startU(y0), y0, outer, y1), mat(color)));
+      group.add(sweepMesh(frame, rectPoints(startU(y1), y0, outer, y1), mat(color)));
     }
   }
 }
@@ -685,7 +688,7 @@ export function buildModuleStructures(
   extent: ModuleExtent | null,
   anchors: Anchors,
   tallest: Tallest | null,
-  pillarEdge: [number, number] = [10, 10],
+  pillarLine: { frame: Frame; u: number } | null = null,
 ): THREE.Group {
   const frame = moduleFrame(moduleId, anchors);
   const group = new THREE.Group();
@@ -799,7 +802,7 @@ export function buildModuleStructures(
       group.add(frameMesh);
     }
   }
-  if (ext.deco !== 'none') addDecoration(group, moduleId, ext, frame, ex, extent, pillarEdge);
+  if (ext.deco !== 'none') addDecoration(group, moduleId, ext, frame, ex, extent, pillarLine);
   if (ext.circleTowers > 0 && extent) addCircleTowers(group, frame, ext, ex);
   return group;
 }
@@ -849,7 +852,7 @@ function addDecoration(
   frame: Frame,
   ex: ModuleExtent,
   extent: ModuleExtent | null,
-  pillarEdge: [number, number],
+  pillarLine: { frame: Frame; u: number } | null,
 ) {
   const mat = new THREE.MeshLambertMaterial({ color: ext.decoColor, flatShading: true });
   const count = Math.max(1, ext.decoCount);
@@ -860,21 +863,15 @@ function addDecoration(
 
   switch (ext.deco) {
     case 'pillars': {
-      // Sigue el borde exterior de la grada más alejada. En los extremos toma la distancia
-      // que comparte con el módulo vecino, así los pilares de cada esquina coinciden
-      const [e0, e1] = pillarEdge;
-      const n = Math.max(count, Math.round(frame.length / COLUMN_STEP));
-      const samples = arcParams(frame, n);
-      const L = samples[0].total;
-      const R = Math.min(PILLAR_RAMP, L / 2);
-      for (const { t, s: arc } of samples) {
-        const r0 = Math.max(0, 1 - arc / R);
-        const r1 = Math.max(0, 1 - (L - arc) / R);
-        const u = ex.outer + (e0 - ex.outer) * r0 + (e1 - ex.outer) * r1 - DECO_PILLAR / 2;
-        const p = surface(frame, t, u);
+      // Pilares sobre el borde exterior de la grada más alejada, a la misma distancia del marco de esa grada
+      const line = pillarLine ?? { frame, u: ex.outer };
+      const lf = line.frame;
+      const n = Math.max(count, Math.round(lf.length / COLUMN_STEP));
+      for (const { t } of arcParams(lf, n)) {
+        const p = surface(lf, t, line.u - DECO_PILLAR / 2);
         const col = new THREE.Mesh(new THREE.BoxGeometry(DECO_PILLAR, h, DECO_PILLAR), mat);
         col.position.set(p.x, h / 2, p.z);
-        col.rotation.y = faceRotation(frame.at(t).n);
+        col.rotation.y = faceRotation(lf.at(t).n);
         group.add(col);
       }
       break;
