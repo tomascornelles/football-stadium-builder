@@ -534,7 +534,6 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
   const f: StandFacade = stand.facade;
   if (f.kind === 'none') return;
   const d = f.depth;
-  const inner = run;
   const outer = run + d;
   const mat = (color: string) => new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
   if (f.kind === 'pillars') {
@@ -542,15 +541,28 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
     addColumnsAlong(group, frame, [outer - 0.5], top, concreteMaterial());
     return;
   }
+
+  // Geometría de la grada: filas, huella y cara inferior escalonada
+  const rows = rowCount(stand.height);
+  const rise = stand.height / rows;
+  const tread = run / rows;
+  const underPts = profileUY(stand, baseY).points.slice(1 + 2 * rows);
+  /** Perfil que rellena toda la zona bajo la grada hasta el borde exterior. */
+  const fill = [v2(outer, baseY - TABLET), v2(outer, top), v2(run, top), ...underPts];
+  /** Primer punto (u) de la grada en el que su cara inferior está a la altura y. */
+  const startU = (y: number) => Math.min(Math.max(0, Math.ceil((y + TABLET - baseY) / rise) - 1), rows - 1) * tread;
+
   if (f.kind === 'solid') {
-    group.add(sweepMesh(frame, rectPoints(inner, baseY, outer, top), mat(f.color)));
+    group.add(sweepMesh(frame, fill, mat(f.color)));
     return;
   }
   if (f.kind === 'floors') {
-    // Tableros cada FLOOR_STEP m, contados desde la base del tablero de la grada (bajo su borde trasero)
+    // Tableros cada FLOOR_STEP m, contados desde la base del tablero de la grada hacia abajo.
+    // Cada uno empieza donde la grada tiene ese nivel y avanza hacia fuera.
     const boardBase = top - TABLET;
     for (let yt = boardBase; yt - FLOOR_SLAB >= baseY - TABLET; yt -= FLOOR_STEP) {
-      group.add(sweepMesh(frame, rectPoints(inner, yt - FLOOR_SLAB, outer, yt), mat(f.color)));
+      const y0 = yt - FLOOR_SLAB;
+      group.add(sweepMesh(frame, rectPoints(startU(y0), y0, outer, yt), mat(f.color)));
     }
     return;
   }
@@ -560,9 +572,11 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
     const color = k % 2 === 0 ? f.color : f.colorB;
     if (f.kind === 'vpanels') {
       const sub = subFrame(frame, k / n, (k + 1) / n);
-      group.add(sweepMesh(sub, rectPoints(inner, baseY, outer, top), mat(color)));
+      group.add(sweepMesh(sub, fill, mat(color)));
     } else {
-      group.add(sweepMesh(frame, rectPoints(inner, baseY + (h * k) / n, outer, baseY + (h * (k + 1)) / n), mat(color)));
+      const y0 = baseY + (h * k) / n;
+      const y1 = baseY + (h * (k + 1)) / n;
+      group.add(sweepMesh(frame, rectPoints(startU(y0), y0, outer, y1), mat(color)));
     }
   }
 }

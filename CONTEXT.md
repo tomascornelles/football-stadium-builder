@@ -12,7 +12,7 @@ Versión **0.30.1**. Funcionalidades:
 
 - **Estadio**: 8 módulos (`north`, `ne`, `east`, `se`, `south`, `sw`, `west`, `nw`). `north`/`south` son laterales (105 m), `west`/`east` son fondos (68 m), las esquinas son curvas de Bézier.
 - **Gradas**: altura, inclinación, desplazamiento, curvatura (recta o curva), barandilla, color. Se apilan por niveles. Pasillos pintados cada ~20 m (color propio por grada); salidas como agujeros oscuros sobre el tablero, en el centro de cada pasillo y con marco de pasillo alrededor. Aforo aproximado mostrado en el editor (0,5 m por asiento).
-- **Fachada por grada** (con barandilla, en el mismo apartado): sin fachada (tableta de 0,5 m), pilares exteriores, lisa, paneles verticales o horizontales. Profundidad de 0 a 40 m desde el borde trasero. Tipo «Pisos»: tableros horizontales cada 5 m contados desde la base del tablero hacia abajo. Selector en barra de iconos.
+- **Fachada por grada** (con barandilla, en el mismo apartado): sin fachada (tableta de 0,5 m), pilares exteriores, lisa, paneles verticales o horizontales. Profundidad de 0 a 40 m desde el borde trasero. Tipo «Pisos»: tableros horizontales cada 5 m; cada tablero empieza donde la grada tiene ese nivel y avanza hacia fuera. Selector en barra de iconos.
 - **Exteriores por módulo**: cubierta (voladizo con inclinación de −20° a 20°, curva), iluminación (torres de focos o barra), marcador, decoración exterior (pilares que siguen el borde exterior, torres, arcos) y sobre cubierta, torres de escaleras circulares. Cada apartado puede aplicarse a todos los módulos por separado.
 - **Entorno**: cuadrícula de 400 × 400 m, celdas de 20 m. Parque por defecto. Herramientas: vía (carretera, avenida o camino), árboles, edificio (casa, edificio u oficinas en torre), agua y borrar. Vías unidas con curvas, cruces, aceras, líneas, coches y semáforos. Glorietas: anillo de 8 vías alrededor de una celda central libre. Aparcamiento: cualquier bloque de 2 × 2 vías o más. Agua con orillas irregulares y arena.
 - **Día y noche**: sombras solo de día. De noche, farolas, ventanas iluminadas, focos y fanales de marquesina con luz real.
@@ -79,6 +79,7 @@ public/
 - 0.21: fachadas uniformes, fanales de marquesina, más intensidad de luz, aparcamientos.
 - 0.22: paleta arena/petróleo/coral, selector de 12 colores, vista cenital.
 - 0.24: fachada por grada, pilares interiores o exteriores, voladizo con inclinación real, focos repartidos en esquinas, escaleras zigzag y torres circulares.
+- 0.32.2: las fachadas lisas y de paneles rellenan la zona bajo la grada; los pisos arrancan desde el nivel de la grada.
 - 0.32.1: pisos desde la base del tablero; salidas más grandes con marco de pasillo.
 - 0.32.0: color de pasillos por grada, desplazamiento de hasta 80 m, fachada de pisos cada 5 m, salidas como agujeros sobre el tablero.
 - 0.31.1: pilares decorativos pegados al borde exterior; pasillos pintados sobre la grada en lugar de cortarla; salidas como huecos en la fachada maciza.
