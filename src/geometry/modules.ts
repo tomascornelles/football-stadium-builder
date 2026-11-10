@@ -17,6 +17,11 @@ const AISLE_SPACING = 20;
 const AISLE_WIDTH = 1.2;
 /** Tramo (m) en el que los pilares decorativos pasan de su distancia propia a la de la esquina. */
 const PILLAR_RAMP = 8;
+/** Altura de las salidas (m) y color de los pasillos pintados en la grada. */
+const DOOR_HEIGHT = 2.4;
+/** Ancho de los pilares decorativos (m). */
+const DECO_PILLAR = 1.2;
+const AISLE_COLOR = '#E8DCC4';
 const CONCRETE = 0xb9c0c9;
 const STEEL = 0xd1d5db;
 const TOWER = 0x9ca3af;
@@ -402,33 +407,36 @@ export function aisleCount(length: number): number {
   return Math.max(0, Math.round(length / AISLE_SPACING) - 1);
 }
 
-/** Tramos (parámetro t) de una grada entre sus pasillos. */
-function tierSegments(frame: Frame): [number, number][] {
+/** Posiciones (parámetro t) del centro de cada pasillo. */
+function aisleCenters(frame: Frame): number[] {
   const n = aisleCount(frame.length);
-  if (n === 0) return [[0, 1]];
-  const half = AISLE_WIDTH / 2 / frame.length;
-  const out: [number, number][] = [];
-  let start = 0;
-  for (let k = 1; k <= n; k++) {
-    const c = k / (n + 1);
-    out.push([start, c - half]);
-    start = c + half;
-  }
-  out.push([start, 1]);
-  return out;
+  return Array.from({ length: n }, (_, k) => (k + 1) / (n + 1));
 }
 
-/** Salidas: una puerta oscura en el frente exterior de la grada, junto a cada pasillo. */
+/** Pasillos: franjas pintadas sobre el tablero de la grada, sin cortarla. */
+function addAisles(group: THREE.Group, frame: Frame, points: THREE.Vector2[]) {
+  const half = AISLE_WIDTH / 2 / frame.length;
+  const lift = points.map((p) => v2(p.x, p.y + 0.06));
+  const mat = new THREE.MeshLambertMaterial({ color: AISLE_COLOR, flatShading: true, side: THREE.DoubleSide });
+  for (const c of aisleCenters(frame)) {
+    group.add(sweepMesh(subFrame(frame, c - half, c + half), lift, mat));
+  }
+}
+
+/**
+ * Salidas: huecos en la fachada maciza junto a cada pasillo (el dintel queda encima).
+ * Sin fachada maciza, la salida se marca con una puerta oscura sobre el frente de la grada.
+ */
 function addExits(group: THREE.Group, frame: Frame, stand: Stand, run: number, baseY: number) {
-  const n = aisleCount(frame.length);
-  if (n === 0) return;
+  if (stand.facade.kind === 'solid') return;
+  const centers = aisleCenters(frame);
+  if (centers.length === 0) return;
   const outer = run + (stand.facade.kind === 'none' ? 0 : stand.facade.depth);
   const mat = new THREE.MeshLambertMaterial({ color: 0x1d2729, flatShading: true });
-  for (let k = 1; k <= n; k++) {
-    const t = k / (n + 1);
+  for (const t of centers) {
     const p = surface(frame, t, outer + 0.15);
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.4, AISLE_WIDTH), mat);
-    door.position.set(p.x, baseY + 1.2, p.z);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.3, DOOR_HEIGHT, AISLE_WIDTH), mat);
+    door.position.set(p.x, baseY + DOOR_HEIGHT / 2, p.z);
     door.rotation.y = faceRotation(frame.at(t).n);
     group.add(door);
   }
@@ -518,7 +526,16 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
     return;
   }
   if (f.kind === 'solid') {
-    group.add(sweepMesh(frame, rectPoints(inner, baseY, outer, top), mat(f.color)));
+    // Huecos de salida: la fachada se interrumpe junto a cada pasillo; el dintel queda encima
+    const half = AISLE_WIDTH / 2 / frame.length;
+    const doorTop = Math.min(top, baseY + DOOR_HEIGHT);
+    let start = 0;
+    for (const c of aisleCenters(frame)) {
+      group.add(sweepMesh(subFrame(frame, start, c - half), rectPoints(inner, baseY, outer, top), mat(f.color)));
+      group.add(sweepMesh(subFrame(frame, c - half, c + half), rectPoints(inner, doorTop, outer, top), mat(f.color)));
+      start = c + half;
+    }
+    group.add(sweepMesh(subFrame(frame, start, 1), rectPoints(inner, baseY, outer, top), mat(f.color)));
     return;
   }
   const n = Math.max(2, Math.round(f.count));
@@ -541,12 +558,10 @@ export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, s
   const mat = new THREE.MeshLambertMaterial({ color: stand.color, flatShading: true, side: THREE.DoubleSide });
   const group = new THREE.Group();
 
-  // La grada se corta en cada pasillo
-  for (const [a, b] of tierSegments(frame)) {
-    const tier = sweepMesh(subFrame(frame, a, b), points, mat);
-    tier.userData.isTier = true;
-    group.add(tier);
-  }
+  const tier = sweepMesh(frame, points, mat);
+  tier.userData.isTier = true;
+  group.add(tier);
+  addAisles(group, frame, points);
   addExits(group, frame, stand, run, baseY);
 
   addFacade(group, stand, frame, run, baseY, baseY + stand.height);
@@ -787,9 +802,9 @@ function addDecoration(
         const s = t * L;
         const r0 = Math.max(0, 1 - s / R);
         const r1 = Math.max(0, 1 - (L - s) / R);
-        const u = ex.outer + (e0 - ex.outer) * r0 + (e1 - ex.outer) * r1 + 1;
+        const u = ex.outer + (e0 - ex.outer) * r0 + (e1 - ex.outer) * r1 - DECO_PILLAR / 2;
         const p = surface(frame, t, u);
-        const col = new THREE.Mesh(new THREE.BoxGeometry(1.2, h, 1.2), mat);
+        const col = new THREE.Mesh(new THREE.BoxGeometry(DECO_PILLAR, h, DECO_PILLAR), mat);
         col.position.set(p.x, h / 2, p.z);
         col.rotation.y = faceRotation(frame.at(t).n);
         group.add(col);

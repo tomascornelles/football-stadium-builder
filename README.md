@@ -2,7 +2,7 @@
 
 Constructor visual de estadios de fútbol en estética pixel art isométrica. Es una aplicación web progresiva (PWA) que funciona en escritorio, tablet y móvil, y puede instalarse y usarse sin conexión tras la primera carga.
 
-**Versión actual:** 0.31.0
+**Versión actual:** 0.31.1
 
 ## Reglas de la red viaria
 
@@ -16,7 +16,7 @@ Constructor visual de estadios de fútbol en estética pixel art isométrica. Es
 - **Campo fijo** de 105 × 68 m con líneas, áreas, círculo central, porterías y franjas de césped.
 - **8 módulos** seleccionables: laterales, fondos y cuatro esquinas curvas (cuartos de circunferencia).
 - **Gradas independientes** con altura, inclinación real (la pendiente se calcula geométricamente), desplazamiento, curvatura, color y barandilla.
-- **Pasillos y salidas** automáticos: un pasillo cada ~20 m en cada grada, con una puerta de salida en el frente exterior.
+- **Pasillos y salidas** automáticos: un pasillo pintado cada ~20 m en cada grada; la salida es un hueco en la fachada maciza junto a cada pasillo.
 - **Aforo aproximado** del estadio, calculado con 0,5 m por asiento y las filas de cada grada.
 - **Apilado de tribunas**: las gradas superiores se elevan sobre la altura de las inferiores.
 - **Copiar gradas** a otro módulo o a todos a la vez.
