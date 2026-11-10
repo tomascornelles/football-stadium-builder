@@ -45,17 +45,13 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       <button
         ref={btn}
         type="button"
-        className="dropdown-trigger"
+        className="color-trigger"
+        style={{ background: value }}
         aria-label={`Color ${value}. Pulsa para cambiar`}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={toggle}
-      >
-        <span className="color-chip" style={{ background: value }} />
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
+      />
       {open && createPortal(
         <>
           <div className="dropdown-backdrop" onPointerDown={() => setOpen(false)} />

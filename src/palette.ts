@@ -14,14 +14,33 @@ export const UI_PALETTE = {
   mist: '#A9C3C6',
 } as const;
 
-/** 24 colores predefinidos, ordenados por tonos: neutros, tierras, corales y azules/verdes. */
+/**
+ * 24 colores predefinidos: 20 de la referencia de colores (ordenados como en ella)
+ * y 4 de la marca. Los valores hex de la referencia son aproximados.
+ */
 export const PALETTE_COLORS: string[] = [
-  // Neutros
-  '#1D2729', '#2B3A42', '#5C6B70', '#8FA3A8', '#C5CFD1', '#F7F3EA',
-  // Tierras y arenas
-  '#F5E6C8', '#E8DCC4', '#D4B98C', '#F2A65A', '#B98B5A', '#8A5A36',
-  // Corales y rojos
-  '#FFB3A6', '#FF8C7A', '#FF5E4D', '#E14A3A', '#C2452D', '#8B2E1F',
-  // Azules y verdes
-  '#A8D8CF', '#5FB3B3', '#1F7A8C', '#16697A', '#0F4C5C', '#0A2E38',
+  '#424279', // Jacksons Purple
+  '#7370D6', // C64 Purple
+  '#F8F1E5', // Swan White
+  '#35ACE2', // Summer Sky
+  '#35DCB5', // Celestial Green
+  '#2D2D57', // Lucky Point
+  '#484885', // Liberty
+  '#A9A59C', // Hot Stone
+  '#22739A', // Devil Blue
+  '#21917A', // Palm Springs Splash
+  '#FF5455', // Fluorescent Red
+  '#FF7A3D', // Synthetic Pumpkin
+  '#D0CDBE', // Crocodile Tooth
+  '#FFB142', // Mandarin Sorbet
+  '#FFD97A', // Spiced Butternut
+  '#B33939', // Eye of Newt
+  '#CF6136', // Chilean Fire
+  '#86837A', // Grey Porcelain
+  '#CC8D35', // Alameda Ochre
+  '#C9AE63', // Desert
+  '#16697A', // Piixell teal
+  '#FF5E4D', // Piixell coral
+  '#1D2729', // Piixell ink
+  '#EDE7E3', // Piixell sand
 ];

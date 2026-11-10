@@ -414,7 +414,7 @@ export function rowCount(height: number): number {
  * Sección de la grada en (u, y): un tablero escalonado de 0,5 m de grosor que nace en su base.
  * Pendiente real: u = altura / tan(inclinación). Por debajo queda hueco, como bajo unas escaleras.
  */
-function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run: number } {
+function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run: number; under: THREE.Vector2[] } {
   const h = stand.height;
   const run = h / Math.tan(THREE.MathUtils.degToRad(stand.tilt));
   const rows = rowCount(h);
@@ -429,11 +429,14 @@ function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run:
   }
   // Cara inferior: la superior desplazada hacia abajo el grosor del tablero
   const under = top.slice().reverse().map((p) => v2(p.x, p.y - TABLET));
-  return { points: [...top, ...under], run };
+  return { points: [...top, ...under], run, under };
 }
 
 /** Fachada de una grada: arranca en su base, llega a su altura y su grosor es la profundidad elegida. */
-function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, baseY: number, top: number) {
+function addFacade(
+  group: THREE.Group, stand: Stand, frame: Frame, run: number, baseY: number, top: number,
+  under: THREE.Vector2[],
+) {
   const f: StandFacade = stand.facade;
   if (f.kind === 'none') return;
   const d = f.depth;
@@ -441,10 +444,14 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
   const outer = run + d;
   const mat = (color: string) => new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
   if (f.kind === 'pillars') {
-    // Pilares que llegan al suelo, en el borde exterior
+    // Pilares que llegan al suelo, en el borde exterior (sin relleno bajo la grada)
     addColumnsAlong(group, frame, [outer - 0.5], top, concreteMaterial());
     return;
   }
+  // Relleno del hueco bajo la grada: desde el suelo hasta su cara inferior, de u=0 a u=run
+  const underAsc = under.slice().reverse(); // u creciente
+  const fill = [v2(0, baseY), ...underAsc, v2(run, baseY)];
+  group.add(sweepMesh(frame, fill, mat(f.color)));
   if (f.kind === 'solid') {
     group.add(sweepMesh(frame, rectPoints(inner, baseY, outer, top), mat(f.color)));
     return;
@@ -465,7 +472,7 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
 /** Grupo 3D de una grada en coordenadas del mundo. */
 export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, stands: Stand[]): THREE.Group {
   const frame = standFrame(stand, anchors, stands);
-  const { points, run } = profileUY(stand, baseY);
+  const { points, run, under } = profileUY(stand, baseY);
   const mat = new THREE.MeshLambertMaterial({ color: stand.color, flatShading: true, side: THREE.DoubleSide });
   const group = new THREE.Group();
 
@@ -479,7 +486,7 @@ export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, s
     const us: number[] = stand.columns === 'inner' ? [0.8] : [run - 0.8];
     addColumnsAlong(group, frame, us, colH, concreteMaterial());
   }
-  addFacade(group, stand, frame, run, baseY, baseY + stand.height);
+  addFacade(group, stand, frame, run, baseY, baseY + stand.height, under);
   if (stand.railing) {
     const rail = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true, side: THREE.DoubleSide });
     group.add(sweepMesh(frame, rectPoints(-RAIL_THICKNESS, baseY, 0, baseY + RAIL_HEIGHT), rail));
@@ -651,12 +658,39 @@ export function buildModuleStructures(
   return group;
 }
 
-/** Escaleras exteriores en zigzag por la fachada, con tramos de 5 m. */
+/** Prisma sólido de 8 vértices: cara superior a[0..3], cara inferior b[0..3] (mismo orden). */
+function prismMesh(a: THREE.Vector3[], b: THREE.Vector3[], material: THREE.Material): THREE.Mesh {
+  const faces = [
+    [a[0], a[1], a[2], a[3]],
+    [b[3], b[2], b[1], b[0]],
+  ];
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4;
+    faces.push([a[i], a[j], b[j], b[i]]);
+  }
+  const pos: number[] = [];
+  for (const f of faces) {
+    const [p0, p1, p2, p3] = f;
+    for (const p of [p0, p1, p2, p0, p2, p3]) pos.push(p.x, p.y, p.z);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.computeVertexNormals();
+  return new THREE.Mesh(geo, material);
+}
+
+/**
+ * Escaleras exteriores: rampas planas en zigzag por la fachada, con tramos de 5 m.
+ * Cada tramo es una losa inclinada con barandilla a cada lado; los tramos se encadenan
+ * alternando el sentido, de modo que la rampa de un tramo parte donde termina la anterior.
+ */
 function addStairs(group: THREE.Group, frame: Frame, ex: ModuleExtent, count: number) {
   const top = ex.top;
   if (top <= 0) return;
-  const mat = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true });
+  const mat = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true, side: THREE.DoubleSide });
   const u = ex.outer + 0.3;
+  const W = 1.2;
+  const THICK = 0.4;
   const flights = Math.max(1, Math.ceil(top / STAIR_FLIGHT));
   for (let s = 0; s < count; s++) {
     const a0 = s / count + 0.04;
@@ -665,15 +699,20 @@ function addStairs(group: THREE.Group, frame: Frame, ex: ModuleExtent, count: nu
       const y0 = f * STAIR_FLIGHT;
       const y1 = Math.min(top, y0 + STAIR_FLIGHT);
       const fromStart = f % 2 === 0;
-      const tStart = fromStart ? a0 : a1;
-      const tEnd = fromStart ? a1 : a0;
-      addSegment(group, pointAt(frame, tStart, u, y0), pointAt(frame, tEnd, u, y1), 0.5, mat);
-      const steps = 8;
-      for (let k = 0; k <= steps; k++) {
-        const r = k / steps;
-        const t = tStart + (tEnd - tStart) * r;
-        const y = y0 + (y1 - y0) * r;
-        addSegment(group, pointAt(frame, t, u - 1.2, y), pointAt(frame, t, u + 1.2, y), 0.25, mat);
+      const tS = fromStart ? a0 : a1;
+      const tE = fromStart ? a1 : a0;
+      // Losa plana inclinada: cuatro esquinas en la cara superior y otras cuatro bajo ella
+      const top4 = [
+        pointAt(frame, tS, u - W, y0), pointAt(frame, tS, u + W, y0),
+        pointAt(frame, tE, u + W, y1), pointAt(frame, tE, u - W, y1),
+      ];
+      const bot4 = top4.map((p) => p.clone().setY(p.y - THICK));
+      group.add(prismMesh(top4, bot4, mat));
+      // Barandillas a ambos lados, siguiendo la pendiente
+      const rail = 1.0;
+      for (const side of [-W, W]) {
+        addSegment(group,
+          pointAt(frame, tS, u + side, y0 + rail), pointAt(frame, tE, u + side, y1 + rail), 0.2, mat);
       }
     }
   }
