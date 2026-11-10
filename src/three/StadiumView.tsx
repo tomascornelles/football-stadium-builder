@@ -130,6 +130,26 @@ export function StadiumView() {
 
     let lastNight: boolean | null = null;
     let lastView: string | null = null;
+    let lastSteps: number | null = null;
+    // Vista exterior libre: ángulos de la cámara isométrica alrededor del estadio
+    const ISO_DIST = Math.hypot(200, 200, 200);
+    const ISO_AZIMUTH = Math.PI / 4;
+    const ISO_ELEVATION = Math.asin(200 / ISO_DIST);
+    let orbitAz = ISO_AZIMUTH;
+    let orbitEl = ISO_ELEVATION;
+    const applyOrbit = () => {
+      camera.position.set(
+        ISO_DIST * Math.cos(orbitEl) * Math.sin(orbitAz),
+        ISO_DIST * Math.sin(orbitEl),
+        ISO_DIST * Math.cos(orbitEl) * Math.cos(orbitAz),
+      );
+      camera.lookAt(0, 0, 0);
+    };
+    const resetOrbit = () => {
+      orbitAz = ISO_AZIMUTH;
+      orbitEl = ISO_ELEVATION;
+      applyOrbit();
+    };
 
     const headPos = new THREE.Vector3();
     /** Coloca cada luz de un grupo sobre su marcador (cabezal de foco o fanal de marquesina). */
@@ -337,7 +357,7 @@ export function StadiumView() {
           camera.position.set(0, 300, 0.001);
         } else {
           camera.up.set(0, 1, 0);
-          camera.position.set(200, 200, 200);
+          resetOrbit();
         }
         camera.lookAt(0, 0, 0);
       }
@@ -364,6 +384,11 @@ export function StadiumView() {
       // Luces de los focos, colocadas en los cabezales del estadio
       updateFloodLights(night);
 
+      // Girar con las flechas recoloca la vista exterior en isométrica
+      if (st.rotationSteps !== lastSteps) {
+        lastSteps = st.rotationSteps;
+        if (st.view === 'iso') resetOrbit();
+      }
       targetAngle = st.rotationSteps * (Math.PI / 2);
     }
 
@@ -534,6 +559,14 @@ export function StadiumView() {
       }
       const prev = pointers.get(e.pointerId)!;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // Vista exterior: arrastrar gira la cámara alrededor del estadio
+      if (getState().view === 'iso' && getState().mode === 'stadium' && pointers.size === 1) {
+        orbitAz -= (e.clientX - prev.x) * 0.008;
+        orbitEl = Math.min(1.5, Math.max(0.15, orbitEl + (e.clientY - prev.y) * 0.006));
+        applyOrbit();
+        down = null;
+        return;
+      }
       if (getState().view === 'inside' && pointers.size === 1) {
         lookAround(e.clientX - prev.x, e.clientY - prev.y);
         down = null;

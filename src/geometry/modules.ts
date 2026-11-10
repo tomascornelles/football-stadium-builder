@@ -763,8 +763,17 @@ export function buildModuleStructures(
     group.add(lamp);
     // Marcador de marquesina: pantalla LED azul bajo el borde delantero, a lo ancho de la cubierta
     if (ext.score === 'marquesina') {
-      const top = yb(0) - 0.4;
-      group.add(sweepMesh(tFrame, roundedRectPoints(u0 + 0.2, top - 3.2, u0 + 1.2, top, 0.4), new THREE.MeshBasicMaterial({ color: LED_BLUE })));
+      // La pantalla se apoya en la cara inferior de la cubierta: su borde superior sigue la misma curva
+      const roofBottom = (u: number) => yb(u) + bump(u);
+      const a = u0 + 0.2;
+      const b = u0 + 1.2;
+      const screen = [
+        v2(a, roofBottom(a) - 3.2),
+        v2(b, roofBottom(b) - 3.2),
+        v2(b, roofBottom(b) - 0.01),
+        v2(a, roofBottom(a) - 0.01),
+      ];
+      group.add(sweepMesh(tFrame, screen, new THREE.MeshBasicMaterial({ color: LED_BLUE })));
     }
     // Barra de luz: solo con cubierta, en el borde interior, como pieza metálica (no emite)
     if (ext.flood === 'bar') {
