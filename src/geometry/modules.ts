@@ -440,15 +440,29 @@ function addColumnsAlong(group: THREE.Group, frame: Frame, us: number[], height:
 
 /* ---------- Pasillos, salidas, aforo y pilares ---------- */
 
-/** Número de pasillos de una grada según su longitud: uno cada AISLE_SPACING metros, sin contar los extremos. */
+/** Número de salidas (y pasillos) de una grada: una cada AISLE_SPACING metros. */
 export function aisleCount(length: number): number {
-  return Math.max(0, Math.round(length / AISLE_SPACING) - 1);
+  return Math.max(0, Math.floor(length / AISLE_SPACING));
 }
 
 /** Posiciones (parámetro t) del centro de cada pasillo. */
 function aisleCenters(frame: Frame): number[] {
-  const n = aisleCount(frame.length);
-  return Array.from({ length: n }, (_, k) => (k + 1) / (n + 1));
+  const cum = arcTable(frame);
+  const N = cum.length - 1;
+  const total = cum[N];
+  const n = aisleCount(total);
+  // Distancias cada AISLE_SPACING m, centradas a lo largo de la grada
+  const start = (total - (n - 1) * AISLE_SPACING) / 2;
+  const out: number[] = [];
+  let j = 1;
+  for (let k = 0; k < n; k++) {
+    const target = start + k * AISLE_SPACING;
+    while (j < N && cum[j] < target) j++;
+    const seg = cum[j] - cum[j - 1] || 1;
+    const f = Math.min(1, Math.max(0, (target - cum[j - 1]) / seg));
+    out.push(((j - 1) + f) / N);
+  }
+  return out;
 }
 
 /** Pasillos: franjas pintadas sobre el tablero de la grada, sin cortarla. */
