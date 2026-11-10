@@ -27,6 +27,10 @@ const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
 /** Altura de los ojos (m) en la vista interior, desde el centro del campo. */
 const EYE_HEIGHT = 1.7;
+/** Velocidad al caminar por el campo (m/s) y límites del paseo (medio campo, con margen). */
+const WALK_SPEED = 12;
+const WALK_HALF_LENGTH = 51;
+const WALK_HALF_WIDTH = 33;
 
 function disposeGroup(group: THREE.Object3D) {
   group.traverse((obj) => {
@@ -56,6 +60,22 @@ export function StadiumView() {
     lookCam.position.set(0, EYE_HEIGHT, 0);
     let lookYaw = 0;
     let lookPitch = 0;
+    let lastFrame = performance.now();
+    // Teclas de flecha mantenidas, para caminar en la vista interior
+    const heldKeys = new Set<string>();
+    const ARROWS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (getState().view !== 'inside' || !ARROWS.includes(e.key)) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      e.preventDefault();
+      heldKeys.add(e.key);
+    };
+    const onKeyUp = (e: KeyboardEvent) => heldKeys.delete(e.key);
+    const onBlur = () => heldKeys.clear();
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
     const activeCam = () => (getState().view === 'inside' ? lookCam : camera);
     camera.position.set(200, 200, 200);
     camera.lookAt(0, 0, 0);
@@ -161,7 +181,12 @@ export function StadiumView() {
 
     const world = new THREE.Group();
     scene.add(world);
-    world.add(buildPitch());
+    const pitch = buildPitch();
+    // El campo recibe la sombra de las gradas y de los focos
+    pitch.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).receiveShadow = true;
+    });
+    world.add(pitch);
 
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(500, 500),
@@ -344,6 +369,23 @@ export function StadiumView() {
 
     function animate() {
       frameId = requestAnimationFrame(animate);
+      const now = performance.now();
+      const dt = Math.min(0.1, (now - lastFrame) / 1000);
+      lastFrame = now;
+      if (getState().view === 'inside' && heldKeys.size > 0) {
+        // Avanzar hacia donde se mira (flechas arriba/abajo) y desplazarse de lado (izquierda/derecha)
+        const fwd = (heldKeys.has('ArrowUp') ? 1 : 0) - (heldKeys.has('ArrowDown') ? 1 : 0);
+        const side = (heldKeys.has('ArrowRight') ? 1 : 0) - (heldKeys.has('ArrowLeft') ? 1 : 0);
+        if (fwd !== 0 || side !== 0) {
+          const step = WALK_SPEED * dt;
+          const sinY = Math.sin(lookYaw);
+          const cosY = Math.cos(lookYaw);
+          lookCam.position.x += (-sinY * fwd + cosY * side) * step;
+          lookCam.position.z += (-cosY * fwd - sinY * side) * step;
+          lookCam.position.x = Math.min(WALK_HALF_LENGTH, Math.max(-WALK_HALF_LENGTH, lookCam.position.x));
+          lookCam.position.z = Math.min(WALK_HALF_WIDTH, Math.max(-WALK_HALF_WIDTH, lookCam.position.z));
+        }
+      }
       const diff = targetAngle - world.rotation.y;
       const rotating = Math.abs(diff) > 1e-4;
       if (rotating) world.rotation.y += diff * ROTATE_SPEED;
@@ -556,6 +598,9 @@ export function StadiumView() {
       unsubscribe();
       cancelAnimationFrame(frameId);
       observer.disconnect();
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
