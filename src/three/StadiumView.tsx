@@ -239,7 +239,7 @@ export function StadiumView() {
       for (const s of st.stands) {
         alive.add(s.id);
         const base = bases.get(s.id) ?? 0;
-        const key = `${s.moduleId}|${s.height}|${s.tilt}|${s.offset}|${base}|${s.columns}|${s.railing}|${s.curve}|${JSON.stringify(s.facade)}|${anchorKey}`;
+        const key = `${s.moduleId}|${s.height}|${s.tilt}|${s.offset}|${base}|${s.railing}|${s.curve}|${JSON.stringify(s.facade)}|${anchorKey}`;
         let entry = entries.get(s.id);
 
         if (!entry || entry.key !== key) {
@@ -271,19 +271,21 @@ export function StadiumView() {
         }
       }
 
-      // Exteriores por módulo
+      // Exteriores por módulo. Los pilares decorativos usan una misma distancia en todo el anillo,
+      // así los de una esquina coinciden con los de sus vecinos.
+      const ringOuter = Math.max(10, ...MODULE_IDS.map((id) => moduleExtent(st.stands, id)?.outer ?? 0));
       for (const id of MODULE_IDS) {
         const ext = st.exteriors[id];
         const extent = moduleExtent(st.stands, id);
         const tallest = tallestStand(st.stands, id, anchors);
-        const key = JSON.stringify([ext, extent, anchorKey, tallest]);
+        const key = JSON.stringify([ext, extent, anchorKey, tallest, ringOuter]);
         const current = structures.get(id);
         if (!current || current.key !== key) {
           if (current) {
             structureGroup.remove(current.group);
             disposeGroup(current.group);
           }
-          const group = buildModuleStructures(id, ext, extent, anchors, tallest);
+          const group = buildModuleStructures(id, ext, extent, anchors, tallest, ringOuter);
           shadowsOn(group);
           structureGroup.add(group);
           structures.set(id, { group, key });

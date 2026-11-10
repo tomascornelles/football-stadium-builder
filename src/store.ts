@@ -10,7 +10,6 @@ import {
   DEFAULT_EXTERIOR,
   DEFAULT_FACADE,
   EXTERIOR_RANGES,
-  migrateColumns,
   MODULE_IDS,
   ModuleExterior,
   ModuleId,
@@ -79,7 +78,6 @@ function load(): AppState {
       .filter(isValidStand)
       .map((s) => ({
         ...s,
-        columns: migrateColumns(s),
         railing: s.railing === true,
         curve: migrateCurve(s),
         facade: resolveFacade(s, parsed.exteriors?.[s.moduleId] as any),
@@ -209,7 +207,6 @@ export const actions = {
         tilt: 25,
         offset: 0,
         color: PALETTE[s.stands.length % PALETTE.length],
-        columns: 'none',
         railing: false,
         curve: 'straight',
         facade: { ...DEFAULT_FACADE },
@@ -227,7 +224,6 @@ export const actions = {
         if (patch.tilt !== undefined) n.tilt = clamp(patch.tilt, LIMITS.tilt.min, LIMITS.tilt.max);
         if (patch.offset !== undefined) n.offset = clamp(patch.offset, LIMITS.offset.min, LIMITS.offset.max);
         if (patch.color !== undefined) n.color = patch.color;
-        if (patch.columns !== undefined) n.columns = patch.columns;
         if (patch.facade !== undefined) {
           const f = sanitizeFacade(patch.facade);
           if (f) n.facade = f;
@@ -335,7 +331,6 @@ export const actions = {
       const stands = s.stands.map((st) => {
         if (!targets.has(st.id)) return st;
         const n = { ...st };
-        if (patch.columns !== undefined) n.columns = patch.columns;
         if (patch.railing !== undefined) n.railing = patch.railing;
         if (patch.color !== undefined) n.color = patch.color;
         if (patch.facade !== undefined) {

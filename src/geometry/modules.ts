@@ -473,12 +473,6 @@ export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, s
   tier.userData.isTier = true;
   group.add(tier);
 
-  // Pilares: solo bajo el tablero, desde el suelo hasta su cara inferior
-  const colH = baseY - TABLET;
-  if (colH > 0 && stand.columns !== 'none') {
-    const us: number[] = stand.columns === 'inner' ? [0.8] : [run - 0.8];
-    addColumnsAlong(group, frame, us, colH, concreteMaterial());
-  }
   addFacade(group, stand, frame, run, baseY, baseY + stand.height);
   if (stand.railing) {
     const rail = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true, side: THREE.DoubleSide });
@@ -532,6 +526,7 @@ export function buildModuleStructures(
   extent: ModuleExtent | null,
   anchors: Anchors,
   tallest: Tallest | null,
+  ringOuter = 10,
 ): THREE.Group {
   const frame = moduleFrame(moduleId, anchors);
   const group = new THREE.Group();
@@ -645,7 +640,7 @@ export function buildModuleStructures(
       group.add(frameMesh);
     }
   }
-  if (ext.deco !== 'none') addDecoration(group, moduleId, ext, frame, ex, extent);
+  if (ext.deco !== 'none') addDecoration(group, moduleId, ext, frame, ex, extent, ringOuter);
   if (ext.stairs && extent) addStairs(group, frame, ex, isCorner(moduleId) ? 1 : 3);
   if (ext.circleTowers > 0 && extent) addCircleTowers(group, frame, ext, ex);
   return group;
@@ -724,6 +719,7 @@ function addDecoration(
   frame: Frame,
   ex: ModuleExtent,
   extent: ModuleExtent | null,
+  ringOuter: number,
 ) {
   const mat = new THREE.MeshLambertMaterial({ color: ext.decoColor, flatShading: true });
   const count = Math.max(1, ext.decoCount);
@@ -734,8 +730,12 @@ function addDecoration(
 
   switch (ext.deco) {
     case 'pillars': {
-      for (const t of ts) {
-        const p = surface(frame, t, outerU);
+      // Un pilar en cada extremo y los demás repartidos entre ellos: en las esquinas
+      // coinciden con los pilares del módulo vecino, y la distancia es la común del anillo
+      const pillarU = ringOuter + 1;
+      for (let k = 0; k <= count; k++) {
+        const t = k / count;
+        const p = surface(frame, t, pillarU);
         const col = new THREE.Mesh(new THREE.BoxGeometry(1.2, h, 1.2), mat);
         col.position.set(p.x, h / 2, p.z);
         col.rotation.y = faceRotation(frame.at(t).n);

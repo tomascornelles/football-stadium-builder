@@ -18,7 +18,6 @@ import {
   SCORE_OPTIONS,
   Stand,
   TOWER_POS_OPTIONS,
-  migrateColumns,
 } from './types';
 
 export const FILE_FORMAT = 'football-stadium-builder';
@@ -78,7 +77,6 @@ function toStand(raw: any, rawExt?: any): Stand {
     tilt: clamp(raw.tilt, LIMITS.tilt.min, LIMITS.tilt.max),
     offset: clamp(raw.offset, LIMITS.offset.min, LIMITS.offset.max),
     color: raw.color,
-    columns: migrateColumns(raw),
     railing: raw.railing === true,
     curve: migrateCurve(raw),
     facade: resolveFacade(raw, rawExt),

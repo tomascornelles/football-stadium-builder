@@ -4,7 +4,6 @@ import { actions, getState } from '../store';
 import { CORNER_TEMPLATE_LABEL, computeAnchors, cornerTemplateOf } from '../geometry/modules';
 import { LIMITS } from '../config';
 import {
-  COLUMN_OPTIONS,
   CURVE_OPTIONS,
   CurveType,
   FACADE_OPTIONS,
@@ -94,10 +93,6 @@ export function StandEditor({ stand }: { stand: Stand }) {
 
       <details className="sub">
         <summary>Pilares y barandilla</summary>
-        <Select
-          label="Pilares" value={stand.columns} options={COLUMN_OPTIONS}
-          onChange={(v) => actions.updateStand(stand.id, { columns: v })}
-        />
         <Toggle
           label="Barandilla"
           checked={stand.railing}
@@ -105,9 +100,9 @@ export function StandEditor({ stand }: { stand: Stand }) {
         />
         <ApplyRow
           moduleLabel="Al módulo"
-          onModule={() => actions.applyStandPatch(stand.id, { columns: stand.columns, railing: stand.railing }, 'module')}
+          onModule={() => actions.applyStandPatch(stand.id, { railing: stand.railing }, 'module')}
           allLabel="A todos"
-          onAll={() => actions.applyStandPatch(stand.id, { columns: stand.columns, railing: stand.railing }, 'all')}
+          onAll={() => actions.applyStandPatch(stand.id, { railing: stand.railing }, 'all')}
         />
       </details>
 

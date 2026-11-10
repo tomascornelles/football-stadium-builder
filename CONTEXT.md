@@ -8,10 +8,10 @@ El usuario construye un estadio por módulos (laterales, fondos y esquinas), con
 
 ## Estado actual
 
-Versión **0.30.0**. Funcionalidades:
+Versión **0.30.1**. Funcionalidades:
 
 - **Estadio**: 8 módulos (`north`, `ne`, `east`, `se`, `south`, `sw`, `west`, `nw`). `north`/`south` son laterales (105 m), `west`/`east` son fondos (68 m), las esquinas son curvas de Bézier.
-- **Gradas**: altura, inclinación, desplazamiento, curvatura (recta, curva intermedia, curva), pilares (ninguno, interiores o exteriores), barandilla, color. Se apilan por niveles.
+- **Gradas**: altura, inclinación, desplazamiento, curvatura (recta o curva), barandilla, color. Se apilan por niveles.
 - **Fachada por grada**: sin fachada (tableta de 0,5 m), pilares exteriores, lisa, paneles verticales o horizontales. Profundidad de 0 a 40 m desde el borde trasero.
 - **Exteriores por módulo**: cubierta (marquesina, voladizo con inclinación de −20° a 20°, curva), iluminación (torres de focos o barra), marcador, decoración exterior y sobre cubierta, escaleras zigzag y torres circulares. Cada apartado puede aplicarse a todos los módulos por separado.
 - **Entorno**: cuadrícula de 400 × 400 m, celdas de 20 m. Parque por defecto. Herramientas: vía (carretera, avenida o camino), árboles, edificio (casa, edificio u oficinas en torre), agua y borrar. Vías unidas con curvas, cruces, aceras, líneas, coches y semáforos. Glorietas: anillo de 8 vías alrededor de una celda central libre. Aparcamiento: cualquier bloque de 2 × 2 vías o más. Agua con orillas irregulares y arena.
@@ -79,6 +79,7 @@ public/
 - 0.21: fachadas uniformes, fanales de marquesina, más intensidad de luz, aparcamientos.
 - 0.22: paleta arena/petróleo/coral, selector de 12 colores, vista cenital.
 - 0.24: fachada por grada, pilares interiores o exteriores, voladizo con inclinación real, focos repartidos en esquinas, escaleras zigzag y torres circulares.
+- 0.30.1: sin pilares en las gradas; curvatura reducida a recta y curva; pilares decorativos exteriores con extremos en las esquinas y distancia común del anillo.
 - 0.30.0: radio único de 8 px, sombras tras los elementos, separación de 8 px, formularios uniformes, casillas cuadradas, selector día/noche legible, sin borde naranja en seleccionados, datos secundarios legibles sobre el acento.
 - 0.27.0: diseño Fluent (superficies planas al 80 %, desenfoque, brillo de 1 px, sin degradados), paleta nueva (acento #16697A, textos #1D2729, fondos #EDE7E3, detalle #FFA62B), logo nuevo en cabecera e icono, pantalla de carga móvil con el acento de fondo.
 - 0.26.1: parking para cualquier bloque 2×2; esquinas con desplazamiento positivo sin deformación (los extremos se desplazan, no la curva entera).

@@ -18,22 +18,6 @@ export interface Option<T extends string> {
   label: string;
 }
 
-/* ---------- Pilares de grada ---------- */
-
-export type ColumnMode = 'none' | 'inner' | 'outer';
-
-export const COLUMN_OPTIONS: Option<ColumnMode>[] = [
-  { value: 'none', label: 'Sin pilares' },
-  { value: 'inner', label: 'Pilares interiores' },
-  { value: 'outer', label: 'Pilares exteriores' },
-];
-
-/** Convierte el campo antiguo «columns» (booleano) en el modo actual. */
-export function migrateColumns(raw: { columns?: unknown }): ColumnMode {
-  if (raw.columns === 'none' || raw.columns === 'inner' || raw.columns === 'outer') return raw.columns;
-  return raw.columns === true ? 'outer' : 'none';
-}
-
 /* ---------- Fachada por grada ---------- */
 
 export type FacadeKind = 'none' | 'pillars' | 'solid' | 'vpanels' | 'hpanels';
@@ -92,8 +76,6 @@ export interface Stand {
   color: string;
   /** Desplazamiento respecto a la línea de banda: + hacia fuera, − hacia el campo. */
   offset: number;
-  /** Pilares de sustentación bajo la grada (solo en tribunas elevadas). */
-  columns: ColumnMode;
   /** Barandilla en el frente de la grada. */
   railing: boolean;
   /** Curvatura de la grada (solo en módulos rectos). */
@@ -102,21 +84,24 @@ export interface Stand {
   facade: StandFacade;
 }
 
-export type CurveType = 'straight' | 'mid' | 'full';
+export type CurveType = 'straight' | 'mid';
 
 export const CURVE_OPTIONS: Option<CurveType>[] = [
   { value: 'straight', label: 'Recta' },
-  { value: 'mid', label: 'Curva intermedia' },
-  { value: 'full', label: 'Curva' },
+  { value: 'mid', label: 'Curva' },
 ];
 
 /** Flecha de la curva según su tipo (m, hacia fuera del campo). */
-export const CURVE_BULGE_BY: Record<CurveType, number> = { straight: 0, mid: 6, full: 14 };
+export const CURVE_BULGE_BY: Record<CurveType, number> = { straight: 0, mid: 6 };
 
-/** Convierte el campo antiguo «curved» (booleano) en el nuevo tipo de curvatura. */
+/**
+ * Convierte los valores antiguos de curvatura: «full» (curva) pasa a la única curva que queda,
+ * y el campo booleano «curved» también.
+ */
 export function migrateCurve(raw: { curve?: unknown; curved?: unknown }): CurveType {
-  if (raw.curve === 'straight' || raw.curve === 'mid' || raw.curve === 'full') return raw.curve;
-  return raw.curved === true ? 'full' : 'straight';
+  if (raw.curve === 'straight' || raw.curve === 'mid') return raw.curve;
+  if (raw.curve === 'full') return 'mid';
+  return raw.curved === true ? 'mid' : 'straight';
 }
 
 export type RoofType = 'none' | 'canopy' | 'cantilever' | 'arch';
@@ -336,5 +321,5 @@ export interface AppState {
 }
 
 export type StandPatch = Partial<
-  Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'columns' | 'railing' | 'curve' | 'facade'>
+  Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'railing' | 'curve' | 'facade'>
 >;
