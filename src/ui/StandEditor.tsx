@@ -27,6 +27,7 @@ const FACADE_ICONS: Record<FacadeKind, ReactNode> = {
   solid: <rect x="5" y="4" width="14" height="16" rx="1.5" />,
   vpanels: <><rect x="5" y="4" width="14" height="16" rx="1.5" /><path d="M9.7 4v16M14.3 4v16" /></>,
   hpanels: <><rect x="5" y="4" width="14" height="16" rx="1.5" /><path d="M5 9.3h14M5 14.7h14" /></>,
+  floors: <><path d="M4 7h16M4 12h16M4 17h16" strokeWidth="2.5" /></>,
 };
 
 export function StandEditor({ stand }: { stand: Stand }) {
@@ -68,6 +69,7 @@ export function StandEditor({ stand }: { stand: Stand }) {
       )}
 
       <ColorField label="Color" value={stand.color} onChange={(v) => actions.updateStand(stand.id, { color: v })} />
+      <ColorField label="Color de pasillos" value={stand.aisleColor} onChange={(v) => actions.updateStand(stand.id, { aisleColor: v })} />
 
       <details className="sub" open>
         <summary>Fachada y barandilla</summary>

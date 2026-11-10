@@ -20,7 +20,7 @@ export interface Option<T extends string> {
 
 /* ---------- Fachada por grada ---------- */
 
-export type FacadeKind = 'none' | 'pillars' | 'solid' | 'vpanels' | 'hpanels';
+export type FacadeKind = 'none' | 'pillars' | 'solid' | 'vpanels' | 'hpanels' | 'floors';
 
 export const FACADE_OPTIONS: Option<FacadeKind>[] = [
   { value: 'none', label: 'Sin fachada' },
@@ -28,6 +28,7 @@ export const FACADE_OPTIONS: Option<FacadeKind>[] = [
   { value: 'solid', label: 'Fachada lisa' },
   { value: 'vpanels', label: 'Paneles verticales' },
   { value: 'hpanels', label: 'Paneles horizontales' },
+  { value: 'floors', label: 'Pisos' },
 ];
 
 /** Fachada de una grada. Su altura es la de la propia grada. */
@@ -76,6 +77,8 @@ export interface Stand {
   color: string;
   /** Desplazamiento respecto a la línea de banda: + hacia fuera, − hacia el campo. */
   offset: number;
+  /** Color de los pasillos pintados sobre el tablero. */
+  aisleColor: string;
   /** Barandilla en el frente de la grada. */
   railing: boolean;
   /** Curvatura de la grada (solo en módulos rectos). */
@@ -317,5 +320,5 @@ export interface AppState {
 }
 
 export type StandPatch = Partial<
-  Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'railing' | 'curve' | 'facade'>
+  Pick<Stand, 'height' | 'tilt' | 'offset' | 'color' | 'aisleColor' | 'railing' | 'curve' | 'facade'>
 >;

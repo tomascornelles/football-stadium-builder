@@ -1,5 +1,5 @@
 /** Versión de la aplicación (SemVer). */
-export const APP_VERSION = '0.31.1';
+export const APP_VERSION = '0.32.0';
 
 /** Dimensiones fijas del campo en metros (1 unidad = 1 m). */
 export const PITCH_LENGTH = 105;
@@ -15,7 +15,7 @@ export const ROW_RISE = 0.6;
 export const LIMITS = {
   height: { min: 2, max: 24, step: 0.5 },
   tilt: { min: 15, max: 40, step: 1 },
-  offset: { min: -5, max: 25, step: 0.5 },
+  offset: { min: -5, max: 80, step: 0.5 },
 } as const;
 
 export const STORAGE_KEY = 'football-stadium-builder:v1';

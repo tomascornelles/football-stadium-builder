@@ -77,6 +77,7 @@ function toStand(raw: any, rawExt?: any): Stand {
     tilt: clamp(raw.tilt, LIMITS.tilt.min, LIMITS.tilt.max),
     offset: clamp(raw.offset, LIMITS.offset.min, LIMITS.offset.max),
     color: raw.color,
+    aisleColor: isColor(raw.aisleColor) ? raw.aisleColor : '#E8DCC4',
     railing: raw.railing === true,
     curve: migrateCurve(raw),
     facade: resolveFacade(raw, rawExt),

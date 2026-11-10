@@ -17,11 +17,12 @@ const AISLE_SPACING = 20;
 const AISLE_WIDTH = 1.2;
 /** Tramo (m) en el que los pilares decorativos pasan de su distancia propia a la de la esquina. */
 const PILLAR_RAMP = 8;
-/** Altura de las salidas (m) y color de los pasillos pintados en la grada. */
-const DOOR_HEIGHT = 2.4;
+/** Tamaño de cada agujero de salida (m) y paso vertical de la fachada de pisos (m). */
+const EXIT_HOLE = 0.6;
+const FLOOR_STEP = 5;
+const FLOOR_SLAB = 0.4;
 /** Ancho de los pilares decorativos (m). */
 const DECO_PILLAR = 1.2;
-const AISLE_COLOR = '#E8DCC4';
 const CONCRETE = 0xb9c0c9;
 const STEEL = 0xd1d5db;
 const TOWER = 0x9ca3af;
@@ -414,31 +415,34 @@ function aisleCenters(frame: Frame): number[] {
 }
 
 /** Pasillos: franjas pintadas sobre el tablero de la grada, sin cortarla. */
-function addAisles(group: THREE.Group, frame: Frame, points: THREE.Vector2[]) {
+function addAisles(group: THREE.Group, frame: Frame, points: THREE.Vector2[], color: string) {
   const half = AISLE_WIDTH / 2 / frame.length;
   const lift = points.map((p) => v2(p.x, p.y + 0.06));
-  const mat = new THREE.MeshLambertMaterial({ color: AISLE_COLOR, flatShading: true, side: THREE.DoubleSide });
+  const mat = new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
   for (const c of aisleCenters(frame)) {
     group.add(sweepMesh(subFrame(frame, c - half, c + half), lift, mat));
   }
 }
 
-/**
- * Salidas: huecos en la fachada maciza junto a cada pasillo (el dintel queda encima).
- * Sin fachada maciza, la salida se marca con una puerta oscura sobre el frente de la grada.
- */
-function addExits(group: THREE.Group, frame: Frame, stand: Stand, run: number, baseY: number) {
-  if (stand.facade.kind === 'solid') return;
+/** Salidas: agujeros oscuros sobre el tablero de la grada, en el centro de cada pasillo. */
+function addExitHoles(group: THREE.Group, frame: Frame, stand: Stand, baseY: number) {
   const centers = aisleCenters(frame);
   if (centers.length === 0) return;
-  const outer = run + (stand.facade.kind === 'none' ? 0 : stand.facade.depth);
+  const { run } = profileUY(stand, baseY);
+  const rows = rowCount(stand.height);
+  const rise = stand.height / rows;
+  const tread = run / rows;
+  // Fila central de la grada: el agujero queda a media profundidad, rodeado de pasillo
+  const i = Math.floor(rows / 2);
+  const u = (i + 0.5) * tread;
+  const y = baseY + (i + 1) * rise + 0.08;
   const mat = new THREE.MeshLambertMaterial({ color: 0x1d2729, flatShading: true });
   for (const t of centers) {
-    const p = surface(frame, t, outer + 0.15);
-    const door = new THREE.Mesh(new THREE.BoxGeometry(0.3, DOOR_HEIGHT, AISLE_WIDTH), mat);
-    door.position.set(p.x, baseY + DOOR_HEIGHT / 2, p.z);
-    door.rotation.y = faceRotation(frame.at(t).n);
-    group.add(door);
+    const p = surface(frame, t, u);
+    const hole = new THREE.Mesh(new THREE.BoxGeometry(EXIT_HOLE, 0.1, EXIT_HOLE), mat);
+    hole.position.set(p.x, y, p.z);
+    hole.rotation.y = faceRotation(frame.at(t).n);
+    group.add(hole);
   }
 }
 
@@ -526,16 +530,14 @@ function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, 
     return;
   }
   if (f.kind === 'solid') {
-    // Huecos de salida: la fachada se interrumpe junto a cada pasillo; el dintel queda encima
-    const half = AISLE_WIDTH / 2 / frame.length;
-    const doorTop = Math.min(top, baseY + DOOR_HEIGHT);
-    let start = 0;
-    for (const c of aisleCenters(frame)) {
-      group.add(sweepMesh(subFrame(frame, start, c - half), rectPoints(inner, baseY, outer, top), mat(f.color)));
-      group.add(sweepMesh(subFrame(frame, c - half, c + half), rectPoints(inner, doorTop, outer, top), mat(f.color)));
-      start = c + half;
+    group.add(sweepMesh(frame, rectPoints(inner, baseY, outer, top), mat(f.color)));
+    return;
+  }
+  if (f.kind === 'floors') {
+    // Tableros horizontales cada FLOOR_STEP metros, desde la base hasta la altura de la grada
+    for (let y = baseY; y < top - 0.01; y += FLOOR_STEP) {
+      group.add(sweepMesh(frame, rectPoints(inner, y, outer, Math.min(y + FLOOR_SLAB, top)), mat(f.color)));
     }
-    group.add(sweepMesh(subFrame(frame, start, 1), rectPoints(inner, baseY, outer, top), mat(f.color)));
     return;
   }
   const n = Math.max(2, Math.round(f.count));
@@ -561,8 +563,8 @@ export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, s
   const tier = sweepMesh(frame, points, mat);
   tier.userData.isTier = true;
   group.add(tier);
-  addAisles(group, frame, points);
-  addExits(group, frame, stand, run, baseY);
+  addAisles(group, frame, points, stand.aisleColor);
+  addExitHoles(group, frame, stand, baseY);
 
   addFacade(group, stand, frame, run, baseY, baseY + stand.height);
   if (stand.railing) {

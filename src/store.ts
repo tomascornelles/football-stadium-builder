@@ -79,6 +79,7 @@ function load(): AppState {
       .map((s) => ({
         ...s,
         railing: s.railing === true,
+        aisleColor: typeof s.aisleColor === 'string' ? s.aisleColor : '#E8DCC4',
         curve: migrateCurve(s),
         facade: resolveFacade(s, parsed.exteriors?.[s.moduleId] as any),
       }));
@@ -207,6 +208,7 @@ export const actions = {
         tilt: 25,
         offset: 0,
         color: PALETTE[s.stands.length % PALETTE.length],
+        aisleColor: '#E8DCC4',
         railing: false,
         curve: 'straight',
         facade: { ...DEFAULT_FACADE },
@@ -229,6 +231,7 @@ export const actions = {
           if (f) n.facade = f;
         }
         if (patch.railing !== undefined) n.railing = patch.railing;
+        if (patch.aisleColor !== undefined) n.aisleColor = patch.aisleColor;
         if (patch.curve !== undefined) n.curve = patch.curve;
         return n;
       }),
@@ -332,6 +335,7 @@ export const actions = {
         if (!targets.has(st.id)) return st;
         const n = { ...st };
         if (patch.railing !== undefined) n.railing = patch.railing;
+        if (patch.aisleColor !== undefined) n.aisleColor = patch.aisleColor;
         if (patch.color !== undefined) n.color = patch.color;
         if (patch.facade !== undefined) {
           const f = sanitizeFacade(patch.facade);
