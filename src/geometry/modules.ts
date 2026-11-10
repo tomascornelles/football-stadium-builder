@@ -130,69 +130,6 @@ function bezierFrame(P0: THREE.Vector2, P1: THREE.Vector2, P2: THREE.Vector2, P3
   };
 }
 
-/**
- * Arco de elipse centrado en el campo que pasa por A y B (x²/p² + y²/q² = 1).
- * Así las esquinas siguen siendo elipses a cualquier distancia del campo: al desplazar
- * la grada, sus extremos se mueven y la elipse se recalcula. Devuelve null si no hay
- * elipse válida; en ese caso se usa la Bézier.
- */
-function ellipseFrame(A: THREE.Vector2, B: THREE.Vector2): Frame | null {
-  const det = A.x * A.x * B.y * B.y - A.y * A.y * B.x * B.x;
-  if (Math.abs(det) < 1e-9) return null;
-  // u = 1/p², w = 1/q²
-  const u = (B.y * B.y - A.y * A.y) / det;
-  const w = (A.x * A.x - B.x * B.x) / det;
-  if (u <= 0 || w <= 0) return null;
-  const p = 1 / Math.sqrt(u);
-  const q = 1 / Math.sqrt(w);
-  const phiA = Math.atan2(A.y / q, A.x / p);
-  const phiB = Math.atan2(B.y / q, B.x / p);
-  // De los dos arcos entre A y B, el de la esquina es el que se aleja del centro del campo
-  const short = Math.atan2(Math.sin(phiB - phiA), Math.cos(phiB - phiA));
-  const longArc = short > 0 ? short - 2 * Math.PI : short + 2 * Math.PI;
-  const chordMid = A.clone().add(B).multiplyScalar(0.5);
-  const awayScore = (delta: number) => {
-    const th = phiA + delta / 2;
-    const m = v2(p * Math.cos(th), q * Math.sin(th));
-    return m.clone().sub(chordMid).dot(chordMid);
-  };
-  const delta = awayScore(short) >= awayScore(longArc) ? short : longArc;
-  const dirSign = Math.sign(delta) || 1;
-  const point = (th: number) => v2(p * Math.cos(th), q * Math.sin(th));
-  let length = 0;
-  let prev = point(phiA);
-  for (let i = 1; i <= ARC_SEGMENTS; i++) {
-    const cur = point(phiA + (delta * i) / ARC_SEGMENTS);
-    length += prev.distanceTo(cur);
-    prev = cur;
-  }
-  return {
-    segments: ARC_SEGMENTS,
-    length,
-    curved: true,
-    at: (t) => {
-      const th = phiA + delta * t;
-      const g = v2(Math.cos(th) / p, Math.sin(th) / q).normalize();
-      return { p: point(th), n: g };
-    },
-    tan: (t) => {
-      const th = phiA + delta * t;
-      return v2(-p * Math.sin(th), q * Math.cos(th)).normalize().multiplyScalar(dirSign);
-    },
-  };
-}
-
-/** Esquina entre dos extremos: elipse centrada en el campo, o Bézier si no hay elipse válida. */
-function cornerCurve(A: THREE.Vector2, tA: THREE.Vector2, B: THREE.Vector2, tB: THREE.Vector2,
-  prevCurved: boolean, nextCurved: boolean): Frame {
-  const e = ellipseFrame(A, B);
-  if (e) return e;
-  const k = CORNER_HANDLE[cornerTemplate(prevCurved, nextCurved)] * A.distanceTo(B);
-  const P1 = A.clone().addScaledVector(tA, k);
-  const P2 = B.clone().addScaledVector(tB, -k);
-  return bezierFrame(A, P1, P2, B, true);
-}
-
 /** Extremos de un módulo recto, a una distancia v de la línea de banda o de fondo. */
 function straightEnds(id: ModuleId, v: number): [THREE.Vector2, THREE.Vector2] {
   switch (id) {
@@ -268,7 +205,14 @@ function cornerFrame(id: ModuleId, anchors: Anchors): Frame {
   const [prev, next] = neighbors(id);
   const pf = moduleFrame(prev, anchors);
   const nf = moduleFrame(next, anchors);
-  return cornerCurve(pf.at(1).p, pf.tan(1), nf.at(0).p, nf.tan(0), pf.curved, nf.curved);
+  const A = pf.at(1).p;
+  const tA = pf.tan(1);
+  const B = nf.at(0).p;
+  const tB = nf.tan(0);
+  const k = CORNER_HANDLE[cornerTemplate(pf.curved, nf.curved)] * A.distanceTo(B);
+  const P1 = A.clone().addScaledVector(tA, k);
+  const P2 = B.clone().addScaledVector(tB, -k);
+  return bezierFrame(A, P1, P2, B, true);
 }
 
 /** Curva de referencia de un módulo (la de su ancla). */
@@ -340,8 +284,13 @@ export function standFrame(stand: Stand, anchors: Anchors, stands: Stand[]): Fra
     // (no la curva entera): así una curva cerrada no se cruza consigo misma al alejarse
     const off = cornerExtraOffset(stand, stands);
     const A = pf.at(1).p.clone().addScaledVector(pf.at(1).n, off);
+    const tA = pf.tan(1);
     const B = nf.at(0).p.clone().addScaledVector(nf.at(0).n, off);
-    return cornerCurve(A, pf.tan(1), B, nf.tan(0), pf.curved, nf.curved);
+    const tB = nf.tan(0);
+    const k = CORNER_HANDLE[cornerTemplate(pf.curved, nf.curved)] * A.distanceTo(B);
+    const P1 = A.clone().addScaledVector(tA, k);
+    const P2 = B.clone().addScaledVector(tB, -k);
+    return bezierFrame(A, P1, P2, B, true);
   }
   const [a, b] = straightEnds(stand.moduleId, STAND_GAP + stand.offset);
   return buildFrame(a, b, CURVE_BULGE_BY[stand.curve as CurveType]);
@@ -465,7 +414,7 @@ export function rowCount(height: number): number {
  * Sección de la grada en (u, y): un tablero escalonado de 0,5 m de grosor que nace en su base.
  * Pendiente real: u = altura / tan(inclinación). Por debajo queda hueco, como bajo unas escaleras.
  */
-function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run: number; under: THREE.Vector2[] } {
+function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run: number } {
   const h = stand.height;
   const run = h / Math.tan(THREE.MathUtils.degToRad(stand.tilt));
   const rows = rowCount(h);
@@ -480,14 +429,11 @@ function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run:
   }
   // Cara inferior: la superior desplazada hacia abajo el grosor del tablero
   const under = top.slice().reverse().map((p) => v2(p.x, p.y - TABLET));
-  return { points: [...top, ...under], run, under };
+  return { points: [...top, ...under], run };
 }
 
 /** Fachada de una grada: arranca en su base, llega a su altura y su grosor es la profundidad elegida. */
-function addFacade(
-  group: THREE.Group, stand: Stand, frame: Frame, run: number, baseY: number, top: number,
-  under: THREE.Vector2[],
-) {
+function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, baseY: number, top: number) {
   const f: StandFacade = stand.facade;
   if (f.kind === 'none') return;
   const d = f.depth;
@@ -495,14 +441,10 @@ function addFacade(
   const outer = run + d;
   const mat = (color: string) => new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
   if (f.kind === 'pillars') {
-    // Pilares que llegan al suelo, en el borde exterior (sin relleno bajo la grada)
+    // Pilares que llegan al suelo, en el borde exterior
     addColumnsAlong(group, frame, [outer - 0.5], top, concreteMaterial());
     return;
   }
-  // Relleno del hueco bajo la grada: desde el suelo hasta su cara inferior, de u=0 a u=run
-  const underAsc = under.slice().reverse(); // u creciente
-  const fill = [v2(0, baseY), ...underAsc, v2(run, baseY)];
-  group.add(sweepMesh(frame, fill, mat(f.color)));
   if (f.kind === 'solid') {
     group.add(sweepMesh(frame, rectPoints(inner, baseY, outer, top), mat(f.color)));
     return;
@@ -523,7 +465,7 @@ function addFacade(
 /** Grupo 3D de una grada en coordenadas del mundo. */
 export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, stands: Stand[]): THREE.Group {
   const frame = standFrame(stand, anchors, stands);
-  const { points, run, under } = profileUY(stand, baseY);
+  const { points, run } = profileUY(stand, baseY);
   const mat = new THREE.MeshLambertMaterial({ color: stand.color, flatShading: true, side: THREE.DoubleSide });
   const group = new THREE.Group();
 
@@ -537,7 +479,7 @@ export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, s
     const us: number[] = stand.columns === 'inner' ? [0.8] : [run - 0.8];
     addColumnsAlong(group, frame, us, colH, concreteMaterial());
   }
-  addFacade(group, stand, frame, run, baseY, baseY + stand.height, under);
+  addFacade(group, stand, frame, run, baseY, baseY + stand.height);
   if (stand.railing) {
     const rail = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true, side: THREE.DoubleSide });
     group.add(sweepMesh(frame, rectPoints(-RAIL_THICKNESS, baseY, 0, baseY + RAIL_HEIGHT), rail));
@@ -709,39 +651,12 @@ export function buildModuleStructures(
   return group;
 }
 
-/** Prisma sólido de 8 vértices: cara superior a[0..3], cara inferior b[0..3] (mismo orden). */
-function prismMesh(a: THREE.Vector3[], b: THREE.Vector3[], material: THREE.Material): THREE.Mesh {
-  const faces = [
-    [a[0], a[1], a[2], a[3]],
-    [b[3], b[2], b[1], b[0]],
-  ];
-  for (let i = 0; i < 4; i++) {
-    const j = (i + 1) % 4;
-    faces.push([a[i], a[j], b[j], b[i]]);
-  }
-  const pos: number[] = [];
-  for (const f of faces) {
-    const [p0, p1, p2, p3] = f;
-    for (const p of [p0, p1, p2, p0, p2, p3]) pos.push(p.x, p.y, p.z);
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.computeVertexNormals();
-  return new THREE.Mesh(geo, material);
-}
-
-/**
- * Escaleras exteriores: rampas planas en zigzag por la fachada, con tramos de 5 m.
- * Cada tramo es una losa inclinada con barandilla a cada lado; los tramos se encadenan
- * alternando el sentido, de modo que la rampa de un tramo parte donde termina la anterior.
- */
+/** Escaleras exteriores en zigzag por la fachada, con tramos de 5 m. */
 function addStairs(group: THREE.Group, frame: Frame, ex: ModuleExtent, count: number) {
   const top = ex.top;
   if (top <= 0) return;
-  const mat = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true, side: THREE.DoubleSide });
+  const mat = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true });
   const u = ex.outer + 0.3;
-  const W = 1.2;
-  const THICK = 0.4;
   const flights = Math.max(1, Math.ceil(top / STAIR_FLIGHT));
   for (let s = 0; s < count; s++) {
     const a0 = s / count + 0.04;
@@ -750,20 +665,15 @@ function addStairs(group: THREE.Group, frame: Frame, ex: ModuleExtent, count: nu
       const y0 = f * STAIR_FLIGHT;
       const y1 = Math.min(top, y0 + STAIR_FLIGHT);
       const fromStart = f % 2 === 0;
-      const tS = fromStart ? a0 : a1;
-      const tE = fromStart ? a1 : a0;
-      // Losa plana inclinada: cuatro esquinas en la cara superior y otras cuatro bajo ella
-      const top4 = [
-        pointAt(frame, tS, u - W, y0), pointAt(frame, tS, u + W, y0),
-        pointAt(frame, tE, u + W, y1), pointAt(frame, tE, u - W, y1),
-      ];
-      const bot4 = top4.map((p) => p.clone().setY(p.y - THICK));
-      group.add(prismMesh(top4, bot4, mat));
-      // Barandillas a ambos lados, siguiendo la pendiente
-      const rail = 1.0;
-      for (const side of [-W, W]) {
-        addSegment(group,
-          pointAt(frame, tS, u + side, y0 + rail), pointAt(frame, tE, u + side, y1 + rail), 0.2, mat);
+      const tStart = fromStart ? a0 : a1;
+      const tEnd = fromStart ? a1 : a0;
+      addSegment(group, pointAt(frame, tStart, u, y0), pointAt(frame, tEnd, u, y1), 0.5, mat);
+      const steps = 8;
+      for (let k = 0; k <= steps; k++) {
+        const r = k / steps;
+        const t = tStart + (tEnd - tStart) * r;
+        const y = y0 + (y1 - y0) * r;
+        addSegment(group, pointAt(frame, t, u - 1.2, y), pointAt(frame, t, u + 1.2, y), 0.25, mat);
       }
     }
   }

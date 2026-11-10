@@ -1,6 +1,6 @@
 # DESIGN_SYSTEM.md — Sistema de diseño de Piixell
 
-Describe cómo se ve y se comporta la interfaz. Los valores de referencia están en `src/styles.css` (sección v0.31.2, al final del archivo).
+Describe cómo se ve y se comporta la interfaz. Los valores de referencia están en `src/styles.css` (sección v0.30.0, al final del archivo).
 
 ## Estilo: Fluent
 

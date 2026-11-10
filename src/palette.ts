@@ -14,14 +14,14 @@ export const UI_PALETTE = {
   mist: '#A9C3C6',
 } as const;
 
-/**
- * 24 colores predefinidos: 20 de la referencia de colores (ordenados como en ella)
- * y 4 de la marca. Los valores hex de la referencia son aproximados.
- */
+/** 24 colores predefinidos, ordenados por tonos: neutros, tierras, corales y azules/verdes. */
 export const PALETTE_COLORS: string[] = [
-  // Ordenados por matiz (neutros primero, de oscuro a claro); 6 por fila
-  '#86837A', '#A9A59C', '#B33939', '#FF5455', '#FF5E4D', '#CF6136',
-  '#FF7A3D', '#EDE7E3', '#CC8D35', '#FFB142', '#F8F1E5', '#FFD97A',
-  '#C9AE63', '#D0CDBE', '#35DCB5', '#21917A', '#1D2729', '#16697A',
-  '#35ACE2', '#22739A', '#2D2D57', '#424279', '#484885', '#7370D6',
+  // Neutros
+  '#1D2729', '#2B3A42', '#5C6B70', '#8FA3A8', '#C5CFD1', '#F7F3EA',
+  // Tierras y arenas
+  '#F5E6C8', '#E8DCC4', '#D4B98C', '#F2A65A', '#B98B5A', '#8A5A36',
+  // Corales y rojos
+  '#FFB3A6', '#FF8C7A', '#FF5E4D', '#E14A3A', '#C2452D', '#8B2E1F',
+  // Azules y verdes
+  '#A8D8CF', '#5FB3B3', '#1F7A8C', '#16697A', '#0F4C5C', '#0A2E38',
 ];
