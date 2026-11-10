@@ -56,8 +56,6 @@ export interface StandFacade {
   colorB: string;
   /** Número de divisiones de los paneles. */
   count: number;
-  /** Pilares exteriores: distancia de su centro a la cara exterior de la fachada (m). + fuera, − dentro. */
-  pillarOffset?: number;
 }
 
 export const FACADE_RANGES = { depth: [0.5, 40] as [number, number], count: [2, 30] as [number, number] };
@@ -104,22 +102,21 @@ export interface Stand {
   facade: StandFacade;
 }
 
-export type CurveType = 'straight' | 'mid';
+export type CurveType = 'straight' | 'mid' | 'full';
 
 export const CURVE_OPTIONS: Option<CurveType>[] = [
   { value: 'straight', label: 'Recta' },
-  { value: 'mid', label: 'Curva' },
+  { value: 'mid', label: 'Curva intermedia' },
+  { value: 'full', label: 'Curva' },
 ];
 
 /** Flecha de la curva según su tipo (m, hacia fuera del campo). */
-export const CURVE_BULGE_BY: Record<CurveType, number> = { straight: 0, mid: 6 };
+export const CURVE_BULGE_BY: Record<CurveType, number> = { straight: 0, mid: 6, full: 14 };
 
 /** Convierte el campo antiguo «curved» (booleano) en el nuevo tipo de curvatura. */
 export function migrateCurve(raw: { curve?: unknown; curved?: unknown }): CurveType {
-  if (raw.curve === 'straight' || raw.curve === 'mid') return raw.curve;
-  // Las antiguas «Curva» (grande) y «Curva intermedia» pasan a «Curva»
-  if (raw.curve === 'full') return 'mid';
-  return raw.curved === true ? 'mid' : 'straight';
+  if (raw.curve === 'straight' || raw.curve === 'mid' || raw.curve === 'full') return raw.curve;
+  return raw.curved === true ? 'full' : 'straight';
 }
 
 export type RoofType = 'none' | 'canopy' | 'cantilever' | 'arch';

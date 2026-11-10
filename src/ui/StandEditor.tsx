@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ColorPicker } from './ColorPicker';
 import { actions, getState } from '../store';
+import { CORNER_TEMPLATE_LABEL, computeAnchors, cornerTemplateOf } from '../geometry/modules';
 import { LIMITS } from '../config';
 import {
   COLUMN_OPTIONS,
@@ -47,7 +48,12 @@ export function StandEditor({ stand }: { stand: Stand }) {
         min={LIMITS.offset.min} max={LIMITS.offset.max} step={LIMITS.offset.step}
         onChange={(v) => actions.updateStand(stand.id, { offset: v })}
       />
-      {(
+      {corner ? (
+        <p className="hint-text">
+          Esquina con plantilla {CORNER_TEMPLATE_LABEL[cornerTemplateOf(stand.moduleId, computeAnchors(getState().stands))]}:
+          se ajusta a las gradas vecinas.
+        </p>
+      ) : (
         <Select<CurveType>
           label="Curvatura" value={stand.curve} options={CURVE_OPTIONS}
           onChange={(v) => actions.updateStand(stand.id, { curve: v })}
@@ -68,12 +74,6 @@ export function StandEditor({ stand }: { stand: Stand }) {
               label="Grosor" unit="m" value={f.depth}
               min={0.5} max={40} step={0.5} onChange={(v) => setFacade({ depth: v })}
             />
-            {f.kind === 'pillars' && (
-              <Slider
-                label="Posición de pilares" unit="m" value={f.pillarOffset ?? 0.7}
-                min={-3} max={3} step={0.1} onChange={(v) => setFacade({ pillarOffset: v })}
-              />
-            )}
             {panels && (
               <Slider
                 label="Divisiones" unit="" value={f.count} min={2} max={30} step={1}

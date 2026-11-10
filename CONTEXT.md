@@ -8,7 +8,7 @@ El usuario construye un estadio por módulos (laterales, fondos y esquinas), con
 
 ## Estado actual
 
-Versión **0.33.0**. Funcionalidades:
+Versión **0.31.2**. Funcionalidades:
 
 - **Estadio**: 8 módulos (`north`, `ne`, `east`, `se`, `south`, `sw`, `west`, `nw`). `north`/`south` son laterales (105 m), `west`/`east` son fondos (68 m), las esquinas son curvas de Bézier.
 - **Gradas**: altura, inclinación, desplazamiento, curvatura (recta, curva intermedia, curva), pilares (ninguno, interiores o exteriores), barandilla, color. Se apilan por niveles.
@@ -79,7 +79,7 @@ public/
 - 0.21: fachadas uniformes, fanales de marquesina, más intensidad de luz, aparcamientos.
 - 0.22: paleta arena/petróleo/coral, selector de 12 colores, vista cenital.
 - 0.24: fachada por grada, pilares interiores o exteriores, voladizo con inclinación real, focos repartidos en esquinas, escaleras zigzag y torres circulares.
-- 0.33.0: radio único de 8 px, sombras tras los elementos, separación de 8 px, formularios uniformes, casillas cuadradas, selector día/noche legible, sin borde naranja en seleccionados, datos secundarios legibles sobre el acento.
+- 0.31.2: radio único de 8 px, sombras tras los elementos, separación de 8 px, formularios uniformes, casillas cuadradas, selector día/noche legible, sin borde naranja en seleccionados, datos secundarios legibles sobre el acento.
 - 0.27.0: diseño Fluent (superficies planas al 80 %, desenfoque, brillo de 1 px, sin degradados), paleta nueva (acento #16697A, textos #1D2729, fondos #EDE7E3, detalle #FFA62B), logo nuevo en cabecera e icono, pantalla de carga móvil con el acento de fondo.
 - 0.26.1: parking para cualquier bloque 2×2; esquinas con desplazamiento positivo sin deformación (los extremos se desplazan, no la curva entera).
 - 0.26: cruces con paso de peatones y línea de detención, transición de anchura entre vías distintas, reglas de aparcamiento corregidas, marcador de marquesina como tira LED de 1 m.
