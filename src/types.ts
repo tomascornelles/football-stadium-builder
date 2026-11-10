@@ -56,6 +56,8 @@ export interface StandFacade {
   colorB: string;
   /** Número de divisiones de los paneles. */
   count: number;
+  /** Pilares exteriores: distancia de su centro a la cara exterior de la fachada (m). + fuera, − dentro. */
+  pillarOffset?: number;
 }
 
 export const FACADE_RANGES = { depth: [0.5, 40] as [number, number], count: [2, 30] as [number, number] };

@@ -2,7 +2,7 @@
 
 Constructor visual de estadios de fútbol en estética pixel art isométrica. Es una aplicación web progresiva (PWA) que funciona en escritorio, tablet y móvil, y puede instalarse y usarse sin conexión tras la primera carga.
 
-**Versión actual:** 0.31.1
+**Versión actual:** 0.32.0
 
 ## Reglas de la red viaria
 

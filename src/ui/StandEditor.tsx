@@ -74,6 +74,12 @@ export function StandEditor({ stand }: { stand: Stand }) {
               label="Grosor" unit="m" value={f.depth}
               min={0.5} max={40} step={0.5} onChange={(v) => setFacade({ depth: v })}
             />
+            {f.kind === 'pillars' && (
+              <Slider
+                label="Posición de pilares" unit="m" value={f.pillarOffset ?? 0.7}
+                min={-3} max={3} step={0.1} onChange={(v) => setFacade({ pillarOffset: v })}
+              />
+            )}
             {panels && (
               <Slider
                 label="Divisiones" unit="" value={f.count} min={2} max={30} step={1}

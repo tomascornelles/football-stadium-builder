@@ -10,6 +10,8 @@ const ARC_SEGMENTS = 32;
 const SLAB = 1.0;
 const COLUMN = 0.9;
 const COLUMN_STEP = 8;
+/** Distancia por defecto de los pilares exteriores a la cara de la fachada (m, hacia fuera). */
+const PILLAR_OFFSET = 0.7;
 const CONCRETE = 0xb9c0c9;
 const STEEL = 0xd1d5db;
 const TOWER = 0x9ca3af;
@@ -130,6 +132,69 @@ function bezierFrame(P0: THREE.Vector2, P1: THREE.Vector2, P2: THREE.Vector2, P3
   };
 }
 
+/**
+ * Arco de elipse centrado en el campo que pasa por A y B (x²/p² + y²/q² = 1).
+ * Así las esquinas siguen siendo elipses a cualquier distancia del campo: al desplazar
+ * la grada, sus extremos se mueven y la elipse se recalcula. Devuelve null si no hay
+ * elipse válida; en ese caso se usa la Bézier.
+ */
+function ellipseFrame(A: THREE.Vector2, B: THREE.Vector2): Frame | null {
+  const det = A.x * A.x * B.y * B.y - A.y * A.y * B.x * B.x;
+  if (Math.abs(det) < 1e-9) return null;
+  // u = 1/p², w = 1/q²
+  const u = (B.y * B.y - A.y * A.y) / det;
+  const w = (A.x * A.x - B.x * B.x) / det;
+  if (u <= 0 || w <= 0) return null;
+  const p = 1 / Math.sqrt(u);
+  const q = 1 / Math.sqrt(w);
+  const phiA = Math.atan2(A.y / q, A.x / p);
+  const phiB = Math.atan2(B.y / q, B.x / p);
+  // De los dos arcos entre A y B, el de la esquina es el que se aleja del centro del campo
+  const short = Math.atan2(Math.sin(phiB - phiA), Math.cos(phiB - phiA));
+  const longArc = short > 0 ? short - 2 * Math.PI : short + 2 * Math.PI;
+  const chordMid = A.clone().add(B).multiplyScalar(0.5);
+  const awayScore = (delta: number) => {
+    const th = phiA + delta / 2;
+    const m = v2(p * Math.cos(th), q * Math.sin(th));
+    return m.clone().sub(chordMid).dot(chordMid);
+  };
+  const delta = awayScore(short) >= awayScore(longArc) ? short : longArc;
+  const dirSign = Math.sign(delta) || 1;
+  const point = (th: number) => v2(p * Math.cos(th), q * Math.sin(th));
+  let length = 0;
+  let prev = point(phiA);
+  for (let i = 1; i <= ARC_SEGMENTS; i++) {
+    const cur = point(phiA + (delta * i) / ARC_SEGMENTS);
+    length += prev.distanceTo(cur);
+    prev = cur;
+  }
+  return {
+    segments: ARC_SEGMENTS,
+    length,
+    curved: true,
+    at: (t) => {
+      const th = phiA + delta * t;
+      const g = v2(Math.cos(th) / p, Math.sin(th) / q).normalize();
+      return { p: point(th), n: g };
+    },
+    tan: (t) => {
+      const th = phiA + delta * t;
+      return v2(-p * Math.sin(th), q * Math.cos(th)).normalize().multiplyScalar(dirSign);
+    },
+  };
+}
+
+/** Esquina entre dos extremos: elipse centrada en el campo, o Bézier si no hay elipse válida. */
+function cornerCurve(A: THREE.Vector2, tA: THREE.Vector2, B: THREE.Vector2, tB: THREE.Vector2,
+  prevCurved: boolean, nextCurved: boolean): Frame {
+  const e = ellipseFrame(A, B);
+  if (e) return e;
+  const k = CORNER_HANDLE[cornerTemplate(prevCurved, nextCurved)] * A.distanceTo(B);
+  const P1 = A.clone().addScaledVector(tA, k);
+  const P2 = B.clone().addScaledVector(tB, -k);
+  return bezierFrame(A, P1, P2, B, true);
+}
+
 /** Extremos de un módulo recto, a una distancia v de la línea de banda o de fondo. */
 function straightEnds(id: ModuleId, v: number): [THREE.Vector2, THREE.Vector2] {
   switch (id) {
@@ -205,14 +270,7 @@ function cornerFrame(id: ModuleId, anchors: Anchors): Frame {
   const [prev, next] = neighbors(id);
   const pf = moduleFrame(prev, anchors);
   const nf = moduleFrame(next, anchors);
-  const A = pf.at(1).p;
-  const tA = pf.tan(1);
-  const B = nf.at(0).p;
-  const tB = nf.tan(0);
-  const k = CORNER_HANDLE[cornerTemplate(pf.curved, nf.curved)] * A.distanceTo(B);
-  const P1 = A.clone().addScaledVector(tA, k);
-  const P2 = B.clone().addScaledVector(tB, -k);
-  return bezierFrame(A, P1, P2, B, true);
+  return cornerCurve(pf.at(1).p, pf.tan(1), nf.at(0).p, nf.tan(0), pf.curved, nf.curved);
 }
 
 /** Curva de referencia de un módulo (la de su ancla). */
@@ -284,13 +342,8 @@ export function standFrame(stand: Stand, anchors: Anchors, stands: Stand[]): Fra
     // (no la curva entera): así una curva cerrada no se cruza consigo misma al alejarse
     const off = cornerExtraOffset(stand, stands);
     const A = pf.at(1).p.clone().addScaledVector(pf.at(1).n, off);
-    const tA = pf.tan(1);
     const B = nf.at(0).p.clone().addScaledVector(nf.at(0).n, off);
-    const tB = nf.tan(0);
-    const k = CORNER_HANDLE[cornerTemplate(pf.curved, nf.curved)] * A.distanceTo(B);
-    const P1 = A.clone().addScaledVector(tA, k);
-    const P2 = B.clone().addScaledVector(tB, -k);
-    return bezierFrame(A, P1, P2, B, true);
+    return cornerCurve(A, pf.tan(1), B, nf.tan(0), pf.curved, nf.curved);
   }
   const [a, b] = straightEnds(stand.moduleId, STAND_GAP + stand.offset);
   return buildFrame(a, b, CURVE_BULGE_BY[stand.curve as CurveType]);
@@ -445,7 +498,8 @@ function addFacade(
   const mat = (color: string) => new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
   if (f.kind === 'pillars') {
     // Pilares que llegan al suelo, en el borde exterior (sin relleno bajo la grada)
-    addColumnsAlong(group, frame, [outer - 0.5], top, concreteMaterial());
+    // Mismo cálculo en todos los módulos y en las esquinas: el pilar se separa de la cara exterior
+    addColumnsAlong(group, frame, [outer + (f.pillarOffset ?? PILLAR_OFFSET)], top, concreteMaterial());
     return;
   }
   // Relleno del hueco bajo la grada: desde el suelo hasta su cara inferior, de u=0 a u=run
