@@ -19,28 +19,9 @@ export const UI_PALETTE = {
  * y 4 de la marca. Los valores hex de la referencia son aproximados.
  */
 export const PALETTE_COLORS: string[] = [
-  '#424279', // Jacksons Purple
-  '#7370D6', // C64 Purple
-  '#F8F1E5', // Swan White
-  '#35ACE2', // Summer Sky
-  '#35DCB5', // Celestial Green
-  '#2D2D57', // Lucky Point
-  '#484885', // Liberty
-  '#A9A59C', // Hot Stone
-  '#22739A', // Devil Blue
-  '#21917A', // Palm Springs Splash
-  '#FF5455', // Fluorescent Red
-  '#FF7A3D', // Synthetic Pumpkin
-  '#D0CDBE', // Crocodile Tooth
-  '#FFB142', // Mandarin Sorbet
-  '#FFD97A', // Spiced Butternut
-  '#B33939', // Eye of Newt
-  '#CF6136', // Chilean Fire
-  '#86837A', // Grey Porcelain
-  '#CC8D35', // Alameda Ochre
-  '#C9AE63', // Desert
-  '#16697A', // Piixell teal
-  '#FF5E4D', // Piixell coral
-  '#1D2729', // Piixell ink
-  '#EDE7E3', // Piixell sand
+  // Ordenados por matiz (neutros primero, de oscuro a claro); 6 por fila
+  '#86837A', '#A9A59C', '#B33939', '#FF5455', '#FF5E4D', '#CF6136',
+  '#FF7A3D', '#EDE7E3', '#CC8D35', '#FFB142', '#F8F1E5', '#FFD97A',
+  '#C9AE63', '#D0CDBE', '#35DCB5', '#21917A', '#1D2729', '#16697A',
+  '#35ACE2', '#22739A', '#2D2D57', '#424279', '#484885', '#7370D6',
 ];
