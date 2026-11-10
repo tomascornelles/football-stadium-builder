@@ -11,7 +11,7 @@ El usuario construye un estadio por módulos (laterales, fondos y esquinas), con
 Versión **0.30.1**. Funcionalidades:
 
 - **Estadio**: 8 módulos (`north`, `ne`, `east`, `se`, `south`, `sw`, `west`, `nw`). `north`/`south` son laterales (105 m), `west`/`east` son fondos (68 m), las esquinas son curvas de Bézier.
-- **Gradas**: altura, inclinación, desplazamiento, curvatura (recta o curva), barandilla, color. Se apilan por niveles. Pasillos pintados cada 20 m, centrados (color propio por grada); salidas como agujeros oscuros sobre el tablero, en el centro de cada pasillo y con marco de pasillo alrededor. Aforo aproximado mostrado en el editor (0,5 m por asiento).
+- **Gradas**: altura, inclinación, desplazamiento, curvatura (recta o curva), barandilla, color. Se apilan por niveles. Pasillos pintados cada 20 m, centrados (color propio por grada); salidas como agujeros oscuros sobre el tablero, repartidas a lo largo de cada pasillo (una cada 10 m de altura a partir de 12 m) y con marco de pasillo alrededor. Aforo aproximado mostrado en el editor (0,5 m por asiento).
 - **Fachada por grada** (con barandilla, en el mismo apartado): sin fachada (tableta de 0,5 m), pilares exteriores, lisa, paneles verticales o horizontales. Profundidad de 0 a 40 m desde el borde trasero. Tipo «Pisos»: tableros horizontales cada 5 m; cada tablero empieza donde la grada tiene ese nivel y avanza hacia fuera. Selector en barra de iconos.
 - **Exteriores por módulo**: cubierta (voladizo con inclinación de −20° a 20°, curva), iluminación (torres de focos o barra), marcador, decoración exterior (pilares que siguen el borde exterior, torres, arcos) y sobre cubierta, torres de escaleras circulares. Cada apartado puede aplicarse a todos los módulos por separado.
 - **Entorno**: cuadrícula de 400 × 400 m, celdas de 20 m. Parque por defecto. Herramientas: vía (carretera, avenida o camino), árboles, edificio (casa, edificio u oficinas en torre), agua y borrar. Vías unidas con curvas, cruces, aceras, líneas, coches y semáforos. Glorietas: anillo de 8 vías alrededor de una celda central libre. Aparcamiento: cualquier bloque de 2 × 2 vías o más. Agua con orillas irregulares y arena.
@@ -79,6 +79,7 @@ public/
 - 0.21: fachadas uniformes, fanales de marquesina, más intensidad de luz, aparcamientos.
 - 0.22: paleta arena/petróleo/coral, selector de 12 colores, vista cenital.
 - 0.24: fachada por grada, pilares interiores o exteriores, voladizo con inclinación real, focos repartidos en esquinas, escaleras zigzag y torres circulares.
+- 0.33.0: salidas por pasillo según la altura (1 hasta 12 m, 2 desde 12 m, 3 desde 22 m, y así cada 10 m), repartidas y centradas a lo largo del pasillo.
 - 0.32.5: salidas y pasillos cada 20 m, centrados a lo largo de la grada y a media altura.
 - 0.32.4: pilares exteriores sobre el marco de la grada más alejada de cada módulo; los tableros comprueban su cara superior para no atravesar la grada.
 - 0.32.3: pilares exteriores repartidos por longitud de arco (siguen las esquinas); fachadas y pisos 0,5 m más bajos para no atravesar el tablero.

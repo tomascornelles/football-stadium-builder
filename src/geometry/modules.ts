@@ -476,8 +476,16 @@ function addAisles(group: THREE.Group, frame: Frame, points: THREE.Vector2[], co
 }
 
 /**
- * Salidas: agujeros oscuros sobre el tablero de la grada, en el centro de cada pasillo.
- * Cada agujero va rodeado de un marco de pasillo pintado, como en las referencias.
+ * Salidas por pasillo según la altura de la grada: 1 por defecto, 2 desde 12 m,
+ * 3 desde 22 m, y así una más cada 10 m.
+ */
+export function exitsPerAisle(height: number): number {
+  return Math.max(1, Math.floor((height + 8) / 10));
+}
+
+/**
+ * Salidas: agujeros oscuros sobre el tablero, repartidos y centrados a lo largo de cada pasillo.
+ * Cada agujero va rodeado de un marco de pasillo pintado.
  */
 function addExitHoles(group: THREE.Group, frame: Frame, stand: Stand, baseY: number) {
   const centers = aisleCenters(frame);
@@ -486,26 +494,29 @@ function addExitHoles(group: THREE.Group, frame: Frame, stand: Stand, baseY: num
   const rows = rowCount(stand.height);
   const rise = stand.height / rows;
   const tread = run / rows;
-  // Fila central de la grada: el agujero queda a media profundidad
-  const i = Math.floor(rows / 2);
-  const u = (i + 0.5) * tread;
-  const yT = baseY + (i + 1) * rise;
+  const n = exitsPerAisle(stand.height);
   // El agujero no puede ser más profundo que la huella de una fila
   const size = Math.min(EXIT_MAX, tread * 0.95);
   const frameSize = size + 2 * AISLE_BORDER;
   const paint = new THREE.MeshLambertMaterial({ color: stand.aisleColor, flatShading: true });
   const dark = new THREE.MeshLambertMaterial({ color: 0x1d2729, flatShading: true });
   for (const t of centers) {
-    const p = surface(frame, t, u);
     const rot = faceRotation(frame.at(t).n);
-    const border = new THREE.Mesh(new THREE.BoxGeometry(frameSize, 0.1, frameSize), paint);
-    border.position.set(p.x, yT + 0.05, p.z);
-    border.rotation.y = rot;
-    group.add(border);
-    const hole = new THREE.Mesh(new THREE.BoxGeometry(size, 0.06, size), dark);
-    hole.position.set(p.x, yT + 0.12, p.z);
-    hole.rotation.y = rot;
-    group.add(hole);
+    for (let k = 0; k < n; k++) {
+      // Salida k-ésima: centrada en su tramo del pasillo (de la base a lo alto de la grada)
+      const row = Math.min(rows - 1, Math.floor(((k + 0.5) / n) * rows));
+      const u = (row + 0.5) * tread;
+      const yT = baseY + (row + 1) * rise;
+      const p = surface(frame, t, u);
+      const border = new THREE.Mesh(new THREE.BoxGeometry(frameSize, 0.1, frameSize), paint);
+      border.position.set(p.x, yT + 0.05, p.z);
+      border.rotation.y = rot;
+      group.add(border);
+      const hole = new THREE.Mesh(new THREE.BoxGeometry(size, 0.06, size), dark);
+      hole.position.set(p.x, yT + 0.12, p.z);
+      hole.rotation.y = rot;
+      group.add(hole);
+    }
   }
 }
 
