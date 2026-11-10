@@ -79,6 +79,7 @@ public/
 - 0.21: fachadas uniformes, fanales de marquesina, más intensidad de luz, aparcamientos.
 - 0.22: paleta arena/petróleo/coral, selector de 12 colores, vista cenital.
 - 0.24: fachada por grada, pilares interiores o exteriores, voladizo con inclinación real, focos repartidos en esquinas, escaleras zigzag y torres circulares.
+- 0.32.3: pilares exteriores repartidos por longitud de arco (siguen las esquinas); fachadas y pisos 0,5 m más bajos para no atravesar el tablero.
 - 0.32.2: las fachadas lisas y de paneles rellenan la zona bajo la grada; los pisos arrancan desde el nivel de la grada.
 - 0.32.1: pisos desde la base del tablero; salidas más grandes con marco de pasillo.
 - 0.32.0: color de pasillos por grada, desplazamiento de hasta 80 m, fachada de pisos cada 5 m, salidas como agujeros sobre el tablero.

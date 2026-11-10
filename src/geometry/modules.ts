@@ -22,6 +22,8 @@ const EXIT_MAX = 2.0;
 const AISLE_BORDER = 0.45;
 const FLOOR_STEP = 5;
 const FLOOR_SLAB = 0.4;
+/** Reducción (m) de la altura de fachadas y pisos respecto al tablero. */
+const FACADE_CUT = 0.5;
 /** Ancho de los pilares decorativos (m). */
 const DECO_PILLAR = 1.2;
 const CONCRETE = 0xb9c0c9;
@@ -387,12 +389,46 @@ function concreteMaterial() {
   return new THREE.MeshLambertMaterial({ color: CONCRETE, flatShading: true });
 }
 
+/** Tabla de longitudes de arco de un marco: distancia recorrida hasta cada una de sus N muestras. */
+function arcTable(frame: Frame): number[] {
+  const N = 240;
+  const cum = [0];
+  let prev = frame.at(0).p;
+  for (let i = 1; i <= N; i++) {
+    const p = frame.at(i / N).p;
+    cum.push(cum[i - 1] + p.distanceTo(prev));
+    prev = p;
+  }
+  return cum;
+}
+
+/**
+ * Puntos repartidos a la misma distancia sobre el marco (incluidos los extremos).
+ * Sobre una curva, así los postes quedan sobre la línea y no cortan por dentro.
+ */
+function arcParams(frame: Frame, n: number): { t: number; s: number; total: number }[] {
+  const cum = arcTable(frame);
+  const N = cum.length - 1;
+  const total = cum[N];
+  const out: { t: number; s: number; total: number }[] = [];
+  let j = 1;
+  for (let k = 0; k <= n; k++) {
+    const target = (total * k) / Math.max(1, n);
+    while (j < N && cum[j] < target) j++;
+    const seg = cum[j] - cum[j - 1] || 1;
+    const f = Math.min(1, Math.max(0, (target - cum[j - 1]) / seg));
+    out.push({ t: Math.min(1, ((j - 1) + f) / N), s: target, total });
+  }
+  return out;
+}
+
 function addColumnsAlong(group: THREE.Group, frame: Frame, us: number[], height: number, mat: THREE.Material) {
   if (height <= 0) return;
   const n = Math.max(2, Math.round(frame.length / COLUMN_STEP) + 1);
+  const ts = arcParams(frame, n - 1).map((q) => q.t);
   for (const u of us) {
     for (let k = 0; k < n; k++) {
-      const t = 0.02 + 0.96 * (k / (n - 1));
+      const t = ts[k];
       const p = surface(frame, t, u);
       const col = new THREE.Mesh(new THREE.BoxGeometry(COLUMN, height, COLUMN), mat);
       col.position.set(p.x, height / 2, p.z);
@@ -530,15 +566,17 @@ function profileUY(stand: Stand, baseY: number): { points: THREE.Vector2[]; run:
 }
 
 /** Fachada de una grada: arranca en su base, llega a su altura y su grosor es la profundidad elegida. */
-function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, baseY: number, top: number) {
+function addFacade(group: THREE.Group, stand: Stand, frame: Frame, run: number, baseY: number, topRaw: number) {
   const f: StandFacade = stand.facade;
   if (f.kind === 'none') return;
   const d = f.depth;
   const outer = run + d;
+  // Las fachadas y pisos se quedan 0,5 m por debajo del borde del tablero para no atravesarlo
+  const top = topRaw - FACADE_CUT;
   const mat = (color: string) => new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide });
   if (f.kind === 'pillars') {
     // Pilares que llegan al suelo, en el borde exterior
-    addColumnsAlong(group, frame, [outer - 0.5], top, concreteMaterial());
+    addColumnsAlong(group, frame, [outer - 0.5], topRaw, concreteMaterial());
     return;
   }
 
@@ -825,13 +863,13 @@ function addDecoration(
       // Sigue el borde exterior de la grada más alejada. En los extremos toma la distancia
       // que comparte con el módulo vecino, así los pilares de cada esquina coinciden
       const [e0, e1] = pillarEdge;
-      const L = frame.length;
+      const n = Math.max(count, Math.round(frame.length / COLUMN_STEP));
+      const samples = arcParams(frame, n);
+      const L = samples[0].total;
       const R = Math.min(PILLAR_RAMP, L / 2);
-      for (let k = 0; k <= count; k++) {
-        const t = k / count;
-        const s = t * L;
-        const r0 = Math.max(0, 1 - s / R);
-        const r1 = Math.max(0, 1 - (L - s) / R);
+      for (const { t, s: arc } of samples) {
+        const r0 = Math.max(0, 1 - arc / R);
+        const r1 = Math.max(0, 1 - (L - arc) / R);
         const u = ex.outer + (e0 - ex.outer) * r0 + (e1 - ex.outer) * r1 - DECO_PILLAR / 2;
         const p = surface(frame, t, u);
         const col = new THREE.Mesh(new THREE.BoxGeometry(DECO_PILLAR, h, DECO_PILLAR), mat);
