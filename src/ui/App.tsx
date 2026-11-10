@@ -183,6 +183,17 @@ export function App() {
               <path d="M4 12h16M12 4v16" />
             </svg>
           </button>
+          <button
+            className={`round-btn ${state.view === 'inside' ? 'active' : ''}`}
+            aria-label={state.view === 'inside' ? 'Salir de la vista interior' : 'Vista interior desde el centro del campo'}
+            title={state.view === 'inside' ? 'Salir de la vista interior' : 'Vista interior'}
+            onClick={() => actions.setView(state.view === 'inside' ? 'iso' : 'inside')}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
           <button className="round-btn" aria-label="Girar a la derecha" onClick={() => actions.rotate(-1)}>
             <RotateIcon dir="right" />
           </button>

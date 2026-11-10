@@ -25,6 +25,8 @@ const VIEW_HALF_W = 130;
 const ROTATE_SPEED = 0.12;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 3;
+/** Altura de los ojos (m) en la vista interior, desde el centro del campo. */
+const EYE_HEIGHT = 1.7;
 
 function disposeGroup(group: THREE.Object3D) {
   group.traverse((obj) => {
@@ -48,6 +50,13 @@ export function StadiumView() {
 
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -1000, 2000);
+    // Vista interior: cámara en perspectiva en el centro del campo, con la mirada girada por arrastre
+    const lookCam = new THREE.PerspectiveCamera(60, 1, 0.3, 2000);
+    lookCam.rotation.order = 'YXZ';
+    lookCam.position.set(0, EYE_HEIGHT, 0);
+    let lookYaw = 0;
+    let lookPitch = 0;
+    const activeCam = () => (getState().view === 'inside' ? lookCam : camera);
     camera.position.set(200, 200, 200);
     camera.lookAt(0, 0, 0);
 
@@ -100,7 +109,7 @@ export function StadiumView() {
     };
 
     let lastNight: boolean | null = null;
-    let lastTopView: boolean | null = null;
+    let lastView: string | null = null;
 
     const headPos = new THREE.Vector3();
     /** Coloca cada luz de un grupo sobre su marcador (cabezal de foco o fanal de marquesina). */
@@ -293,10 +302,12 @@ export function StadiumView() {
       }
 
       // Entorno: cuadrícula y celdas pintadas
-      const topView = st.view === 'top';
-      if (topView !== lastTopView) {
-        lastTopView = topView;
-        if (topView) {
+      if (st.view !== lastView) {
+        lastView = st.view;
+        if (st.view === 'inside') {
+          lookCam.position.set(0, EYE_HEIGHT, 0);
+          lookCam.rotation.set(lookPitch, lookYaw, 0);
+        } else if (st.view === 'top') {
           camera.up.set(0, 0, -1);
           camera.position.set(0, 300, 0.001);
         } else {
@@ -339,7 +350,7 @@ export function StadiumView() {
       else world.rotation.y = targetAngle;
       // Las luces siguen la posición de sus cabezales: al girar hay que recolocarlas
       if (rotating && lastNight) updateFloodLights(true);
-      renderer.render(scene, camera);
+      renderer.render(scene, activeCam());
     }
 
     function resize() {
@@ -353,6 +364,8 @@ export function StadiumView() {
       camera.top = halfH;
       camera.bottom = -halfH;
       camera.updateProjectionMatrix();
+      lookCam.aspect = aspect;
+      lookCam.updateProjectionMatrix();
     }
     const observer = new ResizeObserver(resize);
     observer.observe(container);
@@ -362,6 +375,20 @@ export function StadiumView() {
       zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
       camera.zoom = zoom;
       camera.updateProjectionMatrix();
+    };
+    // En la vista interior el zoom cambia el campo de visión; en las demás, el zoom de la cámara
+    const zoomBy = (factor: number) => {
+      if (getState().view === 'inside') {
+        lookCam.fov = Math.min(100, Math.max(25, lookCam.fov / factor));
+        lookCam.updateProjectionMatrix();
+      } else {
+        applyZoom(zoom * factor);
+      }
+    };
+    const lookAround = (dx: number, dy: number) => {
+      lookYaw -= dx * 0.004;
+      lookPitch = Math.min(1.3, Math.max(-1.3, lookPitch - dy * 0.004));
+      lookCam.rotation.set(lookPitch, lookYaw, 0);
     };
 
     // Selección y gestos: pulsación sin arrastre, pellizco con dos punteros
@@ -446,7 +473,7 @@ export function StadiumView() {
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 1) {
         down = { x: e.clientX, y: e.clientY };
-        if (getState().mode === 'environment') {
+        if (getState().mode === 'environment' && getState().view !== 'inside') {
           painting = true;
           lastCell = '';
           paintAt(e.clientX, e.clientY);
@@ -460,14 +487,20 @@ export function StadiumView() {
 
     const onMove = (e: PointerEvent) => {
       if (!pointers.has(e.pointerId)) {
-        showHover(e.clientX, e.clientY);
+        if (getState().view !== 'inside') showHover(e.clientX, e.clientY);
         return;
       }
+      const prev = pointers.get(e.pointerId)!;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (getState().view === 'inside' && pointers.size === 1) {
+        lookAround(e.clientX - prev.x, e.clientY - prev.y);
+        down = null;
+        return;
+      }
       if (painting && pointers.size === 1) paintAt(e.clientX, e.clientY);
       if (pointers.size === 2) {
         const d = pointerDistance();
-        if (pinchDist > 0 && d > 0) applyZoom(zoom * (d / pinchDist));
+        if (pinchDist > 0 && d > 0) zoomBy(d / pinchDist);
         pinchDist = d;
         down = null;
       }
@@ -482,7 +515,7 @@ export function StadiumView() {
       if (!single || !start) return;
       const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
       if (moved > 8) return;
-      if (getState().mode === 'stadium') pick(e.clientX, e.clientY);
+      if (getState().mode === 'stadium' && getState().view !== 'inside') pick(e.clientX, e.clientY);
     };
 
     const onCancel = (e: PointerEvent) => {
@@ -494,7 +527,7 @@ export function StadiumView() {
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      applyZoom(zoom * Math.exp(-e.deltaY * 0.0015));
+      zoomBy(Math.exp(-e.deltaY * 0.0015));
     };
 
     canvas.addEventListener('pointerdown', onDown);
@@ -508,7 +541,7 @@ export function StadiumView() {
       () => {
         // Sin módulo ni grada destacados: sync() lee isSelectionHidden()
         sync();
-        renderer.render(scene, camera);
+        renderer.render(scene, activeCam());
         return renderer.domElement;
       },
       () => sync(),

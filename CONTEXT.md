@@ -79,6 +79,7 @@ public/
 - 0.21: fachadas uniformes, fanales de marquesina, más intensidad de luz, aparcamientos.
 - 0.22: paleta arena/petróleo/coral, selector de 12 colores, vista cenital.
 - 0.24: fachada por grada, pilares interiores o exteriores, voladizo con inclinación real, focos repartidos en esquinas, escaleras zigzag y torres circulares.
+- 0.34.0: vista interior desde el centro del campo a 1,7 m de altura; arrastrar gira la mirada y el zoom cambia el campo de visión.
 - 0.33.0: salidas por pasillo según la altura (1 hasta 12 m, 2 desde 12 m, 3 desde 22 m, y así cada 10 m), repartidas y centradas a lo largo del pasillo.
 - 0.32.5: salidas y pasillos cada 20 m, centrados a lo largo de la grada y a media altura.
 - 0.32.4: pilares exteriores sobre el marco de la grada más alejada de cada módulo; los tableros comprueban su cara superior para no atravesar la grada.

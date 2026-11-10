@@ -92,7 +92,7 @@ function load(): AppState {
       buildingKind: 'building',
       buildingColor: '#d6d3cd',
       lighting: parsed.lighting === 'night' ? 'night' : 'day',
-      view: parsed.view === 'top' ? 'top' : 'iso',
+      view: parsed.view === 'top' || parsed.view === 'inside' ? parsed.view : 'iso',
       roadKind: 'road',
       selectedModule: MODULE_IDS.includes(parsed.selectedModule as ModuleId)
         ? (parsed.selectedModule as ModuleId) : 'west',

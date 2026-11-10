@@ -274,7 +274,7 @@ export type BuildingKind = 'house' | 'building' | 'tower';
 export const BUILDING_HEIGHT: Record<BuildingKind, number> = { house: 7, building: 24, tower: 75 };
 export type AppMode = 'stadium' | 'environment';
 export type Lighting = 'day' | 'night';
-export type CameraView = 'iso' | 'top';
+export type CameraView = 'iso' | 'top' | 'inside';
 
 /** Celda ocupada de la cuadrícula. Las celdas vacías no aparecen en el mapa. */
 export interface EnvCell {
