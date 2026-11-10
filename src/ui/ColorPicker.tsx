@@ -7,7 +7,7 @@ interface ColorPickerProps {
   onChange: (v: string) => void;
 }
 
-/** Selector de color: botón con el color actual; al pulsarlo aparece una rejilla translúcida de 24 colores. */
+/** Selector de color: el botón entero es el color actual; al pulsarlo aparece una rejilla de 24 colores por tonos. */
 export function ColorPicker({ value, onChange }: ColorPickerProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
@@ -45,16 +45,13 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       <button
         ref={btn}
         type="button"
-        className="dropdown-trigger"
+        className="dropdown-trigger color-trigger"
+        style={{ background: value }}
         aria-label={`Color ${value}. Pulsa para cambiar`}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={toggle}
       >
-        <span className="color-chip" style={{ background: value }} />
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
       </button>
       {open && createPortal(
         <>

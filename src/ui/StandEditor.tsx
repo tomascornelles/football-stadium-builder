@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ColorPicker } from './ColorPicker';
 import { actions, getState } from '../store';
 import { CORNER_TEMPLATE_LABEL, computeAnchors, cornerTemplateOf } from '../geometry/modules';
@@ -16,10 +16,18 @@ import {
 } from '../types';
 import { Slider } from './Slider';
 import { Toggle } from './Toggle';
-import { ApplyRow, ColorField, Select } from './fields';
+import { ColorField, OptionBar, Segmented } from './fields';
 import { Dropdown } from './Dropdown';
 
 const CORNER_IDS: ModuleId[] = ['nw', 'ne', 'sw', 'se'];
+
+const FACADE_ICONS: Record<FacadeKind, ReactNode> = {
+  none: <path d="M5 5l14 14M19 5L5 19" />,
+  pillars: <path d="M6 4v16M12 4v16M18 4v16" />,
+  solid: <rect x="5" y="4" width="14" height="16" rx="1.5" />,
+  vpanels: <><rect x="5" y="4" width="14" height="16" rx="1.5" /><path d="M9.7 4v16M14.3 4v16" /></>,
+  hpanels: <><rect x="5" y="4" width="14" height="16" rx="1.5" /><path d="M5 9.3h14M5 14.7h14" /></>,
+};
 
 export function StandEditor({ stand }: { stand: Stand }) {
   const [target, setTarget] = useState<ModuleId | ''>('');
@@ -53,7 +61,7 @@ export function StandEditor({ stand }: { stand: Stand }) {
           se ajusta a las gradas vecinas.
         </p>
       ) : (
-        <Select<CurveType>
+        <Segmented<CurveType>
           label="Curvatura" value={stand.curve} options={CURVE_OPTIONS}
           onChange={(v) => actions.updateStand(stand.id, { curve: v })}
         />
@@ -62,9 +70,9 @@ export function StandEditor({ stand }: { stand: Stand }) {
       <ColorField label="Color" value={stand.color} onChange={(v) => actions.updateStand(stand.id, { color: v })} />
 
       <details className="sub" open>
-        <summary>Fachada</summary>
-        <Select<FacadeKind>
-          label="Tipo" value={f.kind} options={FACADE_OPTIONS}
+        <summary>Fachada y barandilla</summary>
+        <OptionBar<FacadeKind>
+          label="Tipo" value={f.kind} options={FACADE_OPTIONS} icons={FACADE_ICONS}
           onChange={(v) => setFacade({ kind: v })}
         />
         {f.kind !== 'none' && (
@@ -85,24 +93,10 @@ export function StandEditor({ stand }: { stand: Stand }) {
             )}
           </>
         )}
-        <ApplyRow
-          allLabel="Fachada a todos los módulos"
-          onAll={() => actions.applyStandPatch(stand.id, { facade: f }, 'all')}
-        />
-      </details>
-
-      <details className="sub">
-        <summary>Pilares y barandilla</summary>
         <Toggle
           label="Barandilla"
           checked={stand.railing}
           onChange={(v) => actions.updateStand(stand.id, { railing: v })}
-        />
-        <ApplyRow
-          moduleLabel="Al módulo"
-          onModule={() => actions.applyStandPatch(stand.id, { railing: stand.railing }, 'module')}
-          allLabel="A todos"
-          onAll={() => actions.applyStandPatch(stand.id, { railing: stand.railing }, 'all')}
         />
       </details>
 

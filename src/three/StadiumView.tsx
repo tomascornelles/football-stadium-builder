@@ -11,6 +11,7 @@ import {
   hitboxMesh,
   layoutBaseHeights,
   moduleExtent,
+  pillarEdges,
   tallestStand,
 } from '../geometry/modules';
 import { buildPitch } from './pitch';
@@ -271,21 +272,20 @@ export function StadiumView() {
         }
       }
 
-      // Exteriores por módulo. Los pilares decorativos usan una misma distancia en todo el anillo,
-      // así los de una esquina coinciden con los de sus vecinos.
-      const ringOuter = Math.max(10, ...MODULE_IDS.map((id) => moduleExtent(st.stands, id)?.outer ?? 0));
+      // Exteriores por módulo
+      const edges = pillarEdges(st.stands);
       for (const id of MODULE_IDS) {
         const ext = st.exteriors[id];
         const extent = moduleExtent(st.stands, id);
         const tallest = tallestStand(st.stands, id, anchors);
-        const key = JSON.stringify([ext, extent, anchorKey, tallest, ringOuter]);
+        const key = JSON.stringify([ext, extent, anchorKey, tallest, edges[id]]);
         const current = structures.get(id);
         if (!current || current.key !== key) {
           if (current) {
             structureGroup.remove(current.group);
             disposeGroup(current.group);
           }
-          const group = buildModuleStructures(id, ext, extent, anchors, tallest, ringOuter);
+          const group = buildModuleStructures(id, ext, extent, anchors, tallest, edges[id]);
           shadowsOn(group);
           structureGroup.add(group);
           structures.set(id, { group, key });

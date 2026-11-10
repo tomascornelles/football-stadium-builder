@@ -104,7 +104,7 @@ export function migrateCurve(raw: { curve?: unknown; curved?: unknown }): CurveT
   return raw.curved === true ? 'mid' : 'straight';
 }
 
-export type RoofType = 'none' | 'canopy' | 'cantilever' | 'arch';
+export type RoofType = 'none' | 'cantilever' | 'arch';
 export type FloodType = 'none' | 'mast' | 'bar';
 export type ScoreType = 'none' | 'marcador' | 'pantalla' | 'marquesina';
 export type DecoType = 'none' | 'pillars' | 'towers' | 'struts' | 'arches';
@@ -126,7 +126,6 @@ export const TOWER_POS_OPTIONS: Option<TowerPos>[] = [
 
 export const ROOF_OPTIONS: Option<RoofType>[] = [
   { value: 'none', label: 'Sin cubierta' },
-  { value: 'canopy', label: 'Marquesina plana' },
   { value: 'cantilever', label: 'Voladizo inclinado' },
   { value: 'arch', label: 'Cubierta curva' },
 ];
@@ -190,8 +189,6 @@ export interface ModuleExterior {
   roofDecoHeight: number;
   roofDecoColor: string;
 
-  /** Escaleras exteriores en zigzag, tramos de 5 m. */
-  stairs: boolean;
   /** Torres circulares adjuntas a la fachada (0 a 3). */
   circleTowers: number;
   circleTowerHeight: number;
@@ -231,7 +228,6 @@ export const DEFAULT_EXTERIOR: ModuleExterior = {
   roofDecoHeight: 6,
   roofDecoColor: '#9ca3af',
 
-  stairs: false,
   circleTowers: 0,
   circleTowerHeight: 20,
   circleTowerPos: 'center',

@@ -11,9 +11,9 @@ El usuario construye un estadio por módulos (laterales, fondos y esquinas), con
 Versión **0.30.1**. Funcionalidades:
 
 - **Estadio**: 8 módulos (`north`, `ne`, `east`, `se`, `south`, `sw`, `west`, `nw`). `north`/`south` son laterales (105 m), `west`/`east` son fondos (68 m), las esquinas son curvas de Bézier.
-- **Gradas**: altura, inclinación, desplazamiento, curvatura (recta o curva), barandilla, color. Se apilan por niveles.
-- **Fachada por grada**: sin fachada (tableta de 0,5 m), pilares exteriores, lisa, paneles verticales o horizontales. Profundidad de 0 a 40 m desde el borde trasero.
-- **Exteriores por módulo**: cubierta (marquesina, voladizo con inclinación de −20° a 20°, curva), iluminación (torres de focos o barra), marcador, decoración exterior y sobre cubierta, escaleras zigzag y torres circulares. Cada apartado puede aplicarse a todos los módulos por separado.
+- **Gradas**: altura, inclinación, desplazamiento, curvatura (recta o curva), barandilla, color. Se apilan por niveles. Pasillos cada ~20 m con salida en el frente exterior. Aforo aproximado mostrado en el editor (0,5 m por asiento).
+- **Fachada por grada** (con barandilla, en el mismo apartado): sin fachada (tableta de 0,5 m), pilares exteriores, lisa, paneles verticales o horizontales. Profundidad de 0 a 40 m desde el borde trasero. Selector en barra de iconos.
+- **Exteriores por módulo**: cubierta (voladizo con inclinación de −20° a 20°, curva), iluminación (torres de focos o barra), marcador, decoración exterior (pilares que siguen el borde exterior, torres, arcos) y sobre cubierta, torres de escaleras circulares. Cada apartado puede aplicarse a todos los módulos por separado.
 - **Entorno**: cuadrícula de 400 × 400 m, celdas de 20 m. Parque por defecto. Herramientas: vía (carretera, avenida o camino), árboles, edificio (casa, edificio u oficinas en torre), agua y borrar. Vías unidas con curvas, cruces, aceras, líneas, coches y semáforos. Glorietas: anillo de 8 vías alrededor de una celda central libre. Aparcamiento: cualquier bloque de 2 × 2 vías o más. Agua con orillas irregulares y arena.
 - **Día y noche**: sombras solo de día. De noche, farolas, ventanas iluminadas, focos y fanales de marquesina con luz real.
 - **Guardar y cargar**: biblioteca local con miniaturas, archivo `.json`, exportar PNG.
@@ -79,6 +79,7 @@ public/
 - 0.21: fachadas uniformes, fanales de marquesina, más intensidad de luz, aparcamientos.
 - 0.22: paleta arena/petróleo/coral, selector de 12 colores, vista cenital.
 - 0.24: fachada por grada, pilares interiores o exteriores, voladizo con inclinación real, focos repartidos en esquinas, escaleras zigzag y torres circulares.
+- 0.31.0: pasillos y salidas automáticos, aforo aproximado, color como botón de color completo con paleta por familias, curvatura y fachada como controles de barra, fachada y barandilla unidas, sin marquesina plana ni escaleras en zigzag, pilares decorativos que siguen el borde exterior.
 - 0.30.1: sin pilares en las gradas; curvatura reducida a recta y curva; pilares decorativos exteriores con extremos en las esquinas y distancia común del anillo.
 - 0.30.0: radio único de 8 px, sombras tras los elementos, separación de 8 px, formularios uniformes, casillas cuadradas, selector día/noche legible, sin borde naranja en seleccionados, datos secundarios legibles sobre el acento.
 - 0.27.0: diseño Fluent (superficies planas al 80 %, desenfoque, brillo de 1 px, sin degradados), paleta nueva (acento #16697A, textos #1D2729, fondos #EDE7E3, detalle #FFA62B), logo nuevo en cabecera e icono, pantalla de carga móvil con el acento de fondo.

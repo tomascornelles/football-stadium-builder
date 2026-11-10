@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { actions, getState, subscribe } from '../store';
 import { MODULE_NAMES, ModuleId } from '../types';
+import { estimateCapacity } from '../geometry/modules';
 import { StandEditor } from './StandEditor';
 import { ExteriorEditor } from './ExteriorEditor';
 
@@ -8,6 +9,9 @@ interface EditorPanelProps {
   open: boolean;
   setOpen: (v: boolean) => void;
 }
+
+/** Aforo redondeado a 50 y con separador de miles español. */
+const formatSeats = (n: number) => `${(Math.round(n / 50) * 50).toLocaleString('es-ES')} espectadores`;
 
 export function EditorPanel({ open, setOpen }: EditorPanelProps) {
   const state = useSyncExternalStore(subscribe, getState);
@@ -28,6 +32,10 @@ export function EditorPanel({ open, setOpen }: EditorPanelProps) {
       </div>
 
       <div className="panel-body">
+        <div className="capacity" aria-live="polite">
+          <span>Aforo aproximado</span>
+          <strong>{formatSeats(estimateCapacity(state.stands))}</strong>
+        </div>
         <p className="current-module">
           Seleccionado: <strong>{MODULE_NAMES[state.selectedModule]}</strong>
         </p>

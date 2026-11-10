@@ -10,6 +10,13 @@ const ARC_SEGMENTS = 32;
 const SLAB = 1.0;
 const COLUMN = 0.9;
 const COLUMN_STEP = 8;
+/** Ancho de un asiento (m), para estimar el aforo. */
+const SEAT_WIDTH = 0.5;
+/** Distancia entre pasillos de una grada (m) y ancho de cada pasillo (m). */
+const AISLE_SPACING = 20;
+const AISLE_WIDTH = 1.2;
+/** Tramo (m) en el que los pilares decorativos pasan de su distancia propia a la de la esquina. */
+const PILLAR_RAMP = 8;
 const CONCRETE = 0xb9c0c9;
 const STEEL = 0xd1d5db;
 const TOWER = 0x9ca3af;
@@ -17,8 +24,6 @@ const TOWER = 0x9ca3af;
 const TABLET = 0.5;
 /** Azul del marcador LED. */
 const LED_BLUE = 0x0ea5e9;
-/** Altura de cada tramo de escalera exterior (m). */
-const STAIR_FLIGHT = 5;
 /** Radio de las torres de escaleras (m). */
 const TOWER_R = 5;
 /** Color medio del césped, para la franja entre gradas y campo. */
@@ -390,6 +395,73 @@ function addColumnsAlong(group: THREE.Group, frame: Frame, us: number[], height:
   }
 }
 
+/* ---------- Pasillos, salidas, aforo y pilares ---------- */
+
+/** Número de pasillos de una grada según su longitud: uno cada AISLE_SPACING metros, sin contar los extremos. */
+export function aisleCount(length: number): number {
+  return Math.max(0, Math.round(length / AISLE_SPACING) - 1);
+}
+
+/** Tramos (parámetro t) de una grada entre sus pasillos. */
+function tierSegments(frame: Frame): [number, number][] {
+  const n = aisleCount(frame.length);
+  if (n === 0) return [[0, 1]];
+  const half = AISLE_WIDTH / 2 / frame.length;
+  const out: [number, number][] = [];
+  let start = 0;
+  for (let k = 1; k <= n; k++) {
+    const c = k / (n + 1);
+    out.push([start, c - half]);
+    start = c + half;
+  }
+  out.push([start, 1]);
+  return out;
+}
+
+/** Salidas: una puerta oscura en el frente exterior de la grada, junto a cada pasillo. */
+function addExits(group: THREE.Group, frame: Frame, stand: Stand, run: number, baseY: number) {
+  const n = aisleCount(frame.length);
+  if (n === 0) return;
+  const outer = run + (stand.facade.kind === 'none' ? 0 : stand.facade.depth);
+  const mat = new THREE.MeshLambertMaterial({ color: 0x1d2729, flatShading: true });
+  for (let k = 1; k <= n; k++) {
+    const t = k / (n + 1);
+    const p = surface(frame, t, outer + 0.15);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.3, 2.4, AISLE_WIDTH), mat);
+    door.position.set(p.x, baseY + 1.2, p.z);
+    door.rotation.y = faceRotation(frame.at(t).n);
+    group.add(door);
+  }
+}
+
+/** Aforo aproximado: asientos por fila (sin pasillos) por número de filas de cada grada. */
+export function estimateCapacity(stands: Stand[]): number {
+  const anchors = computeAnchors(stands);
+  let seats = 0;
+  for (const s of stands) {
+    const L = standFrame(s, anchors, stands).length;
+    const usable = Math.max(0, L - aisleCount(L) * AISLE_WIDTH);
+    seats += rowCount(s.height) * Math.floor(usable / SEAT_WIDTH);
+  }
+  return seats;
+}
+
+/**
+ * Distancia exterior de los pilares decorativos en el inicio y el fin de cada módulo.
+ * Dos módulos vecinos comparten la misma distancia en su unión, así que sus pilares coinciden.
+ */
+export function pillarEdges(stands: Stand[]): Record<ModuleId, [number, number]> {
+  const outer = {} as Record<ModuleId, number>;
+  for (const id of RING) outer[id] = moduleExtent(stands, id)?.outer ?? 10;
+  const out = {} as Record<ModuleId, [number, number]>;
+  RING.forEach((id, i) => {
+    const prev = RING[(i + RING.length - 1) % RING.length];
+    const next = RING[(i + 1) % RING.length];
+    out[id] = [Math.max(outer[prev], outer[id]), Math.max(outer[id], outer[next])];
+  });
+  return out;
+}
+
 /* ---------- Gradas ---------- */
 
 /** Layout: altura base de cada grada apilada en su módulo. */
@@ -469,9 +541,13 @@ export function buildStandGroup(stand: Stand, baseY: number, anchors: Anchors, s
   const mat = new THREE.MeshLambertMaterial({ color: stand.color, flatShading: true, side: THREE.DoubleSide });
   const group = new THREE.Group();
 
-  const tier = sweepMesh(frame, points, mat);
-  tier.userData.isTier = true;
-  group.add(tier);
+  // La grada se corta en cada pasillo
+  for (const [a, b] of tierSegments(frame)) {
+    const tier = sweepMesh(subFrame(frame, a, b), points, mat);
+    tier.userData.isTier = true;
+    group.add(tier);
+  }
+  addExits(group, frame, stand, run, baseY);
 
   addFacade(group, stand, frame, run, baseY, baseY + stand.height);
   if (stand.railing) {
@@ -526,7 +602,7 @@ export function buildModuleStructures(
   extent: ModuleExtent | null,
   anchors: Anchors,
   tallest: Tallest | null,
-  ringOuter = 10,
+  pillarEdge: [number, number] = [10, 10],
 ): THREE.Group {
   const frame = moduleFrame(moduleId, anchors);
   const group = new THREE.Group();
@@ -560,7 +636,7 @@ export function buildModuleStructures(
     group.add(sweepMesh(tFrame, [...bottom, ...top.reverse()], roofMat));
     if (ext.roofColumns) {
       addColumnsAlong(group, tFrame, [L - 0.8], yb(L - 0.8), concreteMaterial());
-      if (ext.roof !== 'canopy') addColumnsAlong(group, tFrame, [u0 + 0.8], yb(u0 + 0.8), concreteMaterial());
+      addColumnsAlong(group, tFrame, [u0 + 0.8], yb(u0 + 0.8), concreteMaterial());
     }
     // Fanal de la marquesina: bajo el borde delantero, apuntando al centro (se enciende de noche)
     const lampY = tallest.base + tallest.stand.height + ext.roofHeight - 0.3;
@@ -640,38 +716,9 @@ export function buildModuleStructures(
       group.add(frameMesh);
     }
   }
-  if (ext.deco !== 'none') addDecoration(group, moduleId, ext, frame, ex, extent, ringOuter);
-  if (ext.stairs && extent) addStairs(group, frame, ex, isCorner(moduleId) ? 1 : 3);
+  if (ext.deco !== 'none') addDecoration(group, moduleId, ext, frame, ex, extent, pillarEdge);
   if (ext.circleTowers > 0 && extent) addCircleTowers(group, frame, ext, ex);
   return group;
-}
-
-/** Escaleras exteriores en zigzag por la fachada, con tramos de 5 m. */
-function addStairs(group: THREE.Group, frame: Frame, ex: ModuleExtent, count: number) {
-  const top = ex.top;
-  if (top <= 0) return;
-  const mat = new THREE.MeshLambertMaterial({ color: STEEL, flatShading: true });
-  const u = ex.outer + 0.3;
-  const flights = Math.max(1, Math.ceil(top / STAIR_FLIGHT));
-  for (let s = 0; s < count; s++) {
-    const a0 = s / count + 0.04;
-    const a1 = (s + 1) / count - 0.04;
-    for (let f = 0; f < flights; f++) {
-      const y0 = f * STAIR_FLIGHT;
-      const y1 = Math.min(top, y0 + STAIR_FLIGHT);
-      const fromStart = f % 2 === 0;
-      const tStart = fromStart ? a0 : a1;
-      const tEnd = fromStart ? a1 : a0;
-      addSegment(group, pointAt(frame, tStart, u, y0), pointAt(frame, tEnd, u, y1), 0.5, mat);
-      const steps = 8;
-      for (let k = 0; k <= steps; k++) {
-        const r = k / steps;
-        const t = tStart + (tEnd - tStart) * r;
-        const y = y0 + (y1 - y0) * r;
-        addSegment(group, pointAt(frame, t, u - 1.2, y), pointAt(frame, t, u + 1.2, y), 0.25, mat);
-      }
-    }
-  }
 }
 
 /** Torres de escaleras adjuntas a la fachada: huecas, gruesas y sin techo. */
@@ -719,7 +766,7 @@ function addDecoration(
   frame: Frame,
   ex: ModuleExtent,
   extent: ModuleExtent | null,
-  ringOuter: number,
+  pillarEdge: [number, number],
 ) {
   const mat = new THREE.MeshLambertMaterial({ color: ext.decoColor, flatShading: true });
   const count = Math.max(1, ext.decoCount);
@@ -730,12 +777,18 @@ function addDecoration(
 
   switch (ext.deco) {
     case 'pillars': {
-      // Un pilar en cada extremo y los demás repartidos entre ellos: en las esquinas
-      // coinciden con los pilares del módulo vecino, y la distancia es la común del anillo
-      const pillarU = ringOuter + 1;
+      // Sigue el borde exterior de la grada más alejada. En los extremos toma la distancia
+      // que comparte con el módulo vecino, así los pilares de cada esquina coinciden
+      const [e0, e1] = pillarEdge;
+      const L = frame.length;
+      const R = Math.min(PILLAR_RAMP, L / 2);
       for (let k = 0; k <= count; k++) {
         const t = k / count;
-        const p = surface(frame, t, pillarU);
+        const s = t * L;
+        const r0 = Math.max(0, 1 - s / R);
+        const r1 = Math.max(0, 1 - (L - s) / R);
+        const u = ex.outer + (e0 - ex.outer) * r0 + (e1 - ex.outer) * r1 + 1;
+        const p = surface(frame, t, u);
         const col = new THREE.Mesh(new THREE.BoxGeometry(1.2, h, 1.2), mat);
         col.position.set(p.x, h / 2, p.z);
         col.rotation.y = faceRotation(frame.at(t).n);

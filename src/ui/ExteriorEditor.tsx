@@ -144,9 +144,6 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
           <Slider label="Altura de torres" unit="m" value={ext.circleTowerHeight} min={8} max={60} step={1}
             onChange={(v) => set({ circleTowerHeight: v })} />
         )}
-        <Toggle label="Escaleras exteriores en zigzag" checked={ext.stairs}
-          onChange={(v) => set({ stairs: v })} />
-        <p className="hint-text">3 escaleras en laterales y fondos, 1 en esquinas. Tramos de 5 m.</p>
         {ext.deco !== 'none' && (
           <ColorField label="Color" value={ext.decoColor} onChange={(v) => set({ decoColor: v })} />
         )}
@@ -157,7 +154,7 @@ export function ExteriorEditor({ moduleId, ext }: { moduleId: ModuleId; ext: Mod
 
         <ApplyRow allLabel="Decoración, escaleras y torres a todos los módulos"
           onAll={applyBlock(keys('deco', 'decoCount', 'decoHeight', 'decoColor',
-            'stairs', 'circleTowers', 'circleTowerHeight', 'circleTowerPos', 'circleTowerColor'))} />
+            'circleTowers', 'circleTowerHeight', 'circleTowerPos', 'circleTowerColor'))} />
       </details>
 
       <ApplyRow allLabel="Todos los exteriores a todos los módulos" onAll={() => actions.applyExteriorKeys(moduleId, allKeys)} />
